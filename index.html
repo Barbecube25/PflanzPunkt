@@ -134,6 +134,7 @@ let state = {
     favorites: [],
     selectedPlant: null,
     showPlantingOptions: false,
+    selectedGardenItem: null,
     myGarden: [],
     tasks: [],
     collapsedCategories: { 
@@ -148,6 +149,8 @@ let state = {
 };
 
 // --- LOGIK ---
+const MS_PER_DAY = 86400000;
+
 function toggleCategory(cat) {
     state.collapsedCategories[cat] = !state.collapsedCategories[cat];
     renderApp();
@@ -202,7 +205,8 @@ function handleAddToGarden(locationOption) {
         id: Math.random().toString(36).substr(2, 9),
         plantId: p.id, name: p.name, icon: p.icon, location: locationOption, 
         addedDate: selectedDate.toISOString(), lastWatered: state.currentDate.toISOString(), 
-        lastFertilized: selectedDate.toISOString(), perennial: p.perennial || false
+        lastFertilized: selectedDate.toISOString(), perennial: p.perennial || false,
+        taskHistory: [{ type: 'planted', label: 'Eingepflanzt', icon: '🌱', date: selectedDate.toISOString() }]
     });
     state.showPlantingOptions = false;
     state.selectedPlant = null;
@@ -214,9 +218,10 @@ function handleAddToGarden(locationOption) {
 function completeTask(taskId, type, plantInstanceId) {
     state.myGarden = state.myGarden.map(p => {
         if (p.id !== plantInstanceId) return p;
-        if (type === 'water') return { ...p, lastWatered: state.currentDate.toISOString() };
-        if (type === 'fertilize') return { ...p, lastFertilized: state.currentDate.toISOString() };
-        return p;
+        const history = p.taskHistory || [];
+        if (type === 'water') return { ...p, lastWatered: state.currentDate.toISOString(), taskHistory: [...history, { type: 'water', label: 'Gegossen', icon: '💧', date: state.currentDate.toISOString() }] };
+        if (type === 'fertilize') return { ...p, lastFertilized: state.currentDate.toISOString(), taskHistory: [...history, { type: 'fertilize', label: 'Gedüngt', icon: '🧪', date: state.currentDate.toISOString() }] };
+        return { ...p, taskHistory: [...history, { type: 'harvest', label: 'Geerntet', icon: '🧺', date: state.currentDate.toISOString() }] };
     });
     generateTasks();
     renderApp();
@@ -225,6 +230,17 @@ function completeTask(taskId, type, plantInstanceId) {
 function removeFromGarden(id) {
     state.myGarden = state.myGarden.filter(p => p.id !== id);
     generateTasks();
+    renderApp();
+}
+
+function openGardenItemModal(id) {
+    state.selectedGardenItem = id;
+    state.selectedPlant = null;
+    renderApp();
+}
+
+function closeGardenItemModal() {
+    state.selectedGardenItem = null;
     renderApp();
 }
 
@@ -404,7 +420,7 @@ function renderContent() {
         else html += `<div class="space-y-3 mb-8">` + state.tasks.map(t => `<div class="bg-white rounded-xl p-3 shadow-sm border flex items-center gap-3 ${t.urgency==='hoch'?'border-amber-300':'border-stone-100'}"><div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 ${t.color} ${t.iconColor}">${t.icon==='droplet'?'💧':(t.icon==='flask-conical'?'🧪':'🧺')}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate">${t.title}</h4><p class="text-xs truncate text-stone-500">${t.desc}</p></div><button onclick="completeTask('${t.id}', '${t.type}', '${t.plantId}')" class="shrink-0 bg-stone-100 text-stone-600 text-xs font-bold px-3 py-2 rounded-lg"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button></div>`).join('') + `</div>`;
         html += `<h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Mein Garten (${state.myGarden.length})</h3>`;
         if (state.myGarden.length === 0) html += `<div class="text-center py-6 text-stone-400 text-sm">Noch keine Pflanzen im Garten.</div>`;
-        else html += `<div class="space-y-3">` + state.myGarden.map(item => `<div class="bg-white rounded-xl p-3 shadow-sm border border-stone-100 flex items-center gap-3"><div class="text-2xl w-8 text-center shrink-0">${item.icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate flex items-center gap-1.5">${item.name} ${item.perennial?'<span class="text-purple-500 text-[10px]">∞</span>':''}</h4><div class="flex items-center gap-2 text-xs text-stone-500 mt-0.5"><span class="flex items-center gap-1 text-amber-600">${item.location==='drinnen'?'🏠 Haus':'☀️ Beet'}</span><span>• Tag ${Math.floor((state.currentDate-new Date(item.addedDate))/86400000)}</span></div></div><button onclick="removeFromGarden('${item.id}')" class="shrink-0 p-2 text-stone-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`).join('') + `</div>`;
+        else html += `<div class="space-y-3">` + state.myGarden.map(item => `<div onclick="openGardenItemModal('${item.id}')" onkeydown="if(event.key==='Enter'||event.key===' ')openGardenItemModal('${item.id}')" tabindex="0" role="button" class="bg-white rounded-xl p-3 shadow-sm border border-stone-100 flex items-center gap-3 cursor-pointer active:bg-stone-50"><div class="text-2xl w-8 text-center shrink-0">${item.icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate flex items-center gap-1.5">${item.name} ${item.perennial?'<span class="text-purple-500 text-[10px]">∞</span>':''}</h4><div class="flex items-center gap-2 text-xs text-stone-500 mt-0.5"><span class="flex items-center gap-1 text-amber-600">${item.location==='drinnen'?'🏠 Haus':'☀️ Beet'}</span><span>• Tag ${Math.floor((state.currentDate-new Date(item.addedDate))/MS_PER_DAY)}</span></div></div><div class="flex items-center gap-1 shrink-0"><button onclick="event.stopPropagation(); removeFromGarden('${item.id}')" class="p-2 text-stone-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button><i data-lucide="chevron-right" class="w-4 h-4 text-stone-300"></i></div></div>`).join('') + `</div>`;
         html += `</div>`;
     } else if (state.activeTab === 'favoriten') {
         const favs = gardenPlants.filter(p => state.favorites.includes(p.id));
@@ -431,6 +447,85 @@ function openPlantModal(id) {
 
 function renderModal() {
     const container = document.getElementById('modal-container');
+
+    if (state.selectedGardenItem) {
+        const item = state.myGarden.find(p => p.id === state.selectedGardenItem);
+        if (!item) { container.innerHTML = ''; state.selectedGardenItem = null; return; }
+        const plantDef = gardenPlants.find(p => p.id === item.plantId);
+        const daysSinceAdded = Math.floor((state.currentDate - new Date(item.addedDate)) / MS_PER_DAY);
+
+        // Active tasks for this plant
+        const activeTasks = state.tasks.filter(t => t.plantId === item.id);
+        const activeHTML = activeTasks.length === 0 ? '' :
+            `<div class="mb-4"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2">Heute fällig</h3>` +
+            activeTasks.map(t => `<div class="flex items-center gap-3 bg-amber-50 rounded-xl p-3 mb-2 border border-amber-100">
+                <div class="text-xl w-8 text-center">${t.icon==='droplet'?'💧':(t.icon==='flask-conical'?'🧪':'🧺')}</div>
+                <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${t.title}</p></div>
+                <button onclick="completeTask('${t.id}','${t.type}','${t.plantId}')" class="shrink-0 bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Erledigt</button>
+            </div>`).join('') + `</div>`;
+
+        // Upcoming tasks
+        const upcoming = [];
+        if (item.location === 'drinnen') {
+            const daysUntil = Math.ceil((new Date(item.lastWatered).getTime() + 2*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+            if (daysUntil > 0) upcoming.push({ icon: '💧', label: 'Gießen', daysUntil });
+        }
+        if (plantDef && plantDef.heavyFeeder) {
+            const daysUntil = Math.ceil((new Date(item.lastFertilized).getTime() + 28*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+            if (daysUntil > 0) upcoming.push({ icon: '🧪', label: 'Düngen', daysUntil });
+        }
+        const harvestDays = (plantDef && plantDef.harvestDays) || 60;
+        const daysUntilHarvest = Math.ceil((new Date(item.addedDate).getTime() + harvestDays*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+        if (daysUntilHarvest > 0) upcoming.push({ icon: '🧺', label: 'Ernten', daysUntil: daysUntilHarvest });
+        upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+
+        const upcomingHTML = upcoming.length === 0
+            ? `<p class="text-sm text-stone-400 py-2 text-center">Keine anstehenden Aufgaben.</p>`
+            : upcoming.map(u => `<div class="flex items-center gap-3 bg-stone-50 rounded-xl p-3 mb-2 border border-stone-100">
+                <div class="text-xl w-8 text-center">${u.icon}</div>
+                <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${u.label}</p></div>
+                <span class="text-xs font-bold text-stone-500">${u.daysUntil === 1 ? 'Morgen' : `in ${u.daysUntil} Tagen`}</span>
+            </div>`).join('');
+
+        // History
+        const history = item.taskHistory || [];
+        const historyHTML = history.length === 0
+            ? `<p class="text-sm text-stone-400 py-2 text-center">Noch keine Aktionen aufgezeichnet.</p>`
+            : [...history].reverse().map(h => {
+                const d = new Date(h.date);
+                const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                return `<div class="flex items-center gap-3 py-2.5 border-b border-stone-100 last:border-0">
+                    <div class="text-lg w-8 text-center">${h.icon}</div>
+                    <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${h.label}</p></div>
+                    <span class="text-xs text-stone-400">${dateStr}</span>
+                </div>`;
+            }).join('');
+
+        container.innerHTML = `<div class="absolute inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm" onclick="closeGardenItemModal()">
+            <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto hide-scrollbar" onclick="event.stopPropagation()">
+                <div class="w-12 h-1 bg-stone-200 rounded-full mx-auto mb-6"></div>
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-4xl shadow-sm">${item.icon}</div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-stone-800">${item.name}${item.perennial ? ' <span class="text-purple-500 text-base">∞</span>' : ''}</h2>
+                        <div class="flex items-center gap-2 text-sm text-stone-500 mt-1">
+                            <span>${item.location === 'drinnen' ? '🏠 Haus' : '☀️ Beet'}</span>
+                            <span>• Tag ${daysSinceAdded}</span>
+                        </div>
+                    </div>
+                </div>
+                ${activeHTML}
+                <h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2">Bald fällig</h3>
+                ${upcomingHTML}
+                <h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2 mt-5">Verlauf</h3>
+                <div class="bg-white rounded-xl border border-stone-100 shadow-sm px-3 py-1">${historyHTML}</div>
+                <button onclick="closeGardenItemModal()" class="w-full bg-stone-100 text-stone-800 font-bold py-3 rounded-xl mt-6 transition-colors hover:bg-stone-200">Schließen</button>
+            </div>
+        </div>`;
+        lucide.createIcons();
+        return;
+    }
+
     if (!state.selectedPlant) { container.innerHTML = ''; return; }
     const p = state.selectedPlant; const todayISO = state.currentDate.toISOString().split('T')[0];
     let act = '';
