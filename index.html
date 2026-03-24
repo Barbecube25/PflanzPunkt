@@ -100,6 +100,7 @@ let state = {
     location: 'Jülich, NRW',
     isLoadingWeather: true,
     realData: null,
+    forecast: [],
     activeTab: 'aktuell',
     searchQuery: '',
     favorites: [],
@@ -133,8 +134,16 @@ function simulateNextDay() {
     const nextDate = new Date(state.currentDate);
     nextDate.setDate(nextDate.getDate() + 1);
     state.currentDate = nextDate;
-    const temp = Math.random() * (22 - 6) + 6;
-    state.weather = { condition: Math.random() > 0.7 ? 'Regen' : 'Sonne', temp };
+    let temp, condition;
+    if (state.forecast && state.forecast.length > 0) {
+        const day = state.forecast.shift();
+        temp = day.temp;
+        condition = wmoToCondition(day.weatherCode);
+    } else {
+        temp = Math.random() * (22 - 6) + 6;
+        condition = Math.random() > 0.7 ? 'Regen' : 'Sonne';
+    }
+    state.weather = { condition, temp };
     const month = nextDate.getMonth();
     const factor = month === 0 ? 0.5 : (month === 1 ? 0.75 : 1.0);
     if (temp > 0) state.gts += temp * factor;
@@ -147,6 +156,7 @@ function resetSimulation() {
         state.currentDate = new Date(state.realData.date);
         state.gts = state.realData.gts;
         state.weather = { ...state.realData.weather };
+        state.forecast = state.realData.forecast ? [...state.realData.forecast] : [];
     }
     generateTasks();
     renderApp();
@@ -229,21 +239,30 @@ async function fetchWeather() {
     try {
         const lat = 50.9224; const lon = 6.3610; const today = new Date();
         const startStr = `${today.getFullYear()}-01-01`; const todayStr = today.toISOString().split('T')[0];
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_mean,weather_code&current=temperature_2m,weather_code&timezone=Europe%2FBerlin&start_date=${startStr}&end_date=${todayStr}`);
+        const futureDate = new Date(today); futureDate.setDate(futureDate.getDate() + 7);
+        const futureStr = futureDate.toISOString().split('T')[0];
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_mean,weather_code&current=temperature_2m,weather_code&timezone=Europe%2FBerlin&start_date=${startStr}&end_date=${futureStr}`);
         const data = await res.json();
         let rGts = 0; const tmps = data.daily.temperature_2m_mean;
-        for (let i = 0; i < tmps.length; i++) {
+        const todayIdx = data.daily.time.indexOf(todayStr);
+        const histEnd = todayIdx >= 0 ? todayIdx : Math.max(0, tmps.length - 8); // 8 = today + 7 forecast days
+        for (let i = 0; i <= histEnd; i++) {
             if (tmps[i] > 0) {
                 const d = new Date(data.daily.time[i]);
                 rGts += tmps[i] * (d.getMonth() === 0 ? 0.5 : (d.getMonth() === 1 ? 0.75 : 1.0));
             }
         }
-        const currentTemp = data.current ? data.current.temperature_2m : tmps[tmps.length - 1];
+        const currentTemp = data.current ? data.current.temperature_2m : tmps[histEnd];
         const codes = data.daily.weather_code;
-        const currentCode = data.current ? data.current.weather_code : (codes && codes.length ? codes[codes.length - 1] : 0);
+        const currentCode = data.current ? data.current.weather_code : (codes && codes.length ? codes[histEnd] : 0);
+        const forecast = [];
+        for (let i = histEnd + 1; i < data.daily.time.length; i++) {
+            forecast.push({ date: data.daily.time[i], temp: tmps[i], weatherCode: codes[i] });
+        }
         state.gts = rGts; state.weather = { condition: wmoToCondition(currentCode), temp: currentTemp };
-        state.currentDate = today; state.realData = { gts: rGts, weather: state.weather, date: today };
-    } catch (e) { state.gts = 175; state.weather = { condition: 'Wolken', temp: 10 }; }
+        state.currentDate = today; state.forecast = forecast;
+        state.realData = { gts: rGts, weather: state.weather, date: today, forecast: [...forecast] };
+    } catch (e) { state.gts = 175; state.weather = { condition: 'Wolken', temp: 10 }; state.forecast = []; }
     state.isLoadingWeather = false; generateTasks(); renderApp();
 }
 
