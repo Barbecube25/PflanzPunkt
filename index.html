@@ -221,6 +221,8 @@ function completeTask(taskId, type, plantInstanceId) {
         const history = p.taskHistory || [];
         if (type === 'water') return { ...p, lastWatered: state.currentDate.toISOString(), taskHistory: [...history, { type: 'water', label: 'Gegossen', icon: '💧', date: state.currentDate.toISOString() }] };
         if (type === 'fertilize') return { ...p, lastFertilized: state.currentDate.toISOString(), taskHistory: [...history, { type: 'fertilize', label: 'Gedüngt', icon: '🧪', date: state.currentDate.toISOString() }] };
+        if (type === 'transplant') return { ...p, location: 'draussen', taskHistory: [...history, { type: 'transplant', label: 'Ins Freiland gepflanzt', icon: '🌱', date: state.currentDate.toISOString() }] };
+        if (type === 'frost') return { ...p, taskHistory: [...history, { type: 'frost', label: 'Frostschutz angebracht', icon: '❄️', date: state.currentDate.toISOString() }] };
         return { ...p, taskHistory: [...history, { type: 'harvest', label: 'Geerntet', icon: '🧺', date: state.currentDate.toISOString() }] };
     });
     generateTasks();
@@ -246,14 +248,25 @@ function closeGardenItemModal() {
 
 function generateTasks() {
     const tasks = [];
+    const isRaining = ['Regen', 'Schnee', 'Gewitter'].includes(state.weather.condition);
+    const isFrosty = state.weather.temp <= 3;
     state.myGarden.forEach(item => {
         const plantDef = gardenPlants.find(p => p.id === item.plantId);
         if(!plantDef) return;
         const daysSinceAdded = Math.floor((state.currentDate - new Date(item.addedDate)) / 86400000);
         const daysSinceWatered = Math.floor((state.currentDate - new Date(item.lastWatered)) / 86400000);
-        
+
         if (item.location === 'drinnen' && daysSinceWatered >= 2) {
             tasks.push({ id: `w-${item.id}`, type: 'water', plantId: item.id, icon: 'droplet', title: `${item.name} gießen`, desc: 'Boden prüfen.', urgency: 'mittel', color: 'bg-blue-100', iconColor: 'text-blue-500' });
+        }
+        if (item.location === 'draussen' && daysSinceWatered >= 3 && !isRaining) {
+            tasks.push({ id: `w-${item.id}`, type: 'water', plantId: item.id, icon: 'droplet', title: `${item.name} gießen`, desc: 'Kein Regen – Boden prüfen und gießen.', urgency: 'mittel', color: 'bg-blue-100', iconColor: 'text-blue-500' });
+        }
+        if (item.location === 'drinnen' && plantDef.minGts && plantDef.maxGts && state.gts >= plantDef.minGts && state.gts <= plantDef.maxGts && !isRaining && !isFrosty) {
+            tasks.push({ id: `out-${item.id}`, type: 'transplant', plantId: item.id, icon: 'sprout', title: `${item.name} ins Freiland pflanzen`, desc: `Jetzt guter Zeitpunkt – GTS ${state.gts.toFixed(0)}°C (ab ${plantDef.minGts}°C). Wetter passt!`, urgency: 'mittel', color: 'bg-lime-100', iconColor: 'text-lime-600' });
+        }
+        if (item.location === 'draussen' && plantDef.frostSensitive && isFrosty) {
+            tasks.push({ id: `frost-${item.id}`, type: 'frost', plantId: item.id, icon: 'snowflake', title: `${item.name} vor Frost schützen`, desc: `Temperatur: ${state.weather.temp.toFixed(1)}°C – Frostschutz empfohlen!`, urgency: 'hoch', color: 'bg-sky-100', iconColor: 'text-sky-600' });
         }
         if (plantDef.heavyFeeder && Math.floor((state.currentDate - new Date(item.lastFertilized))/86400000) >= 28) {
             tasks.push({ id: `fert-${item.id}`, type: 'fertilize', plantId: item.id, icon: 'flask-conical', title: `${item.name} düngen`, desc: 'Braucht Nährstoffe.', urgency: 'mittel', color: 'bg-emerald-100', iconColor: 'text-emerald-600' });
@@ -266,6 +279,11 @@ function generateTasks() {
 }
 
 // --- RENDERING ---
+function getTaskIconEmoji(icon) {
+    const map = { 'droplet': '💧', 'flask-conical': '🧪', 'sprout': '🌱', 'snowflake': '❄️', 'shopping-basket': '🧺' };
+    return map[icon] || '🧺';
+}
+
 function wmoToCondition(code) {
     if (code <= 1) return 'Sonne';
     if (code <= 3) return 'Wolken';
@@ -417,7 +435,7 @@ function renderContent() {
     } else if (state.activeTab === 'aufgaben') {
         html += `<div class="p-4 h-full"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Zu tun</h3>`;
         if (state.tasks.length === 0) html += `<div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-sm"><div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-3"><i data-lucide="check-circle"></i></div><h4 class="font-bold text-emerald-800">Alles bestens!</h4></div>`;
-        else html += `<div class="space-y-3 mb-8">` + state.tasks.map(t => `<div class="bg-white rounded-xl p-3 shadow-sm border flex items-center gap-3 ${t.urgency==='hoch'?'border-amber-300':'border-stone-100'}"><div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 ${t.color} ${t.iconColor}">${t.icon==='droplet'?'💧':(t.icon==='flask-conical'?'🧪':'🧺')}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate">${t.title}</h4><p class="text-xs truncate text-stone-500">${t.desc}</p></div><button onclick="completeTask('${t.id}', '${t.type}', '${t.plantId}')" class="shrink-0 bg-stone-100 text-stone-600 text-xs font-bold px-3 py-2 rounded-lg"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button></div>`).join('') + `</div>`;
+        else html += `<div class="space-y-3 mb-8">` + state.tasks.map(t => `<div class="bg-white rounded-xl p-3 shadow-sm border flex items-center gap-3 ${t.urgency==='hoch'?'border-amber-300':'border-stone-100'}"><div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 ${t.color} ${t.iconColor}">${getTaskIconEmoji(t.icon)}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate">${t.title}</h4><p class="text-xs truncate text-stone-500">${t.desc}</p></div><button onclick="completeTask('${t.id}', '${t.type}', '${t.plantId}')" class="shrink-0 bg-stone-100 text-stone-600 text-xs font-bold px-3 py-2 rounded-lg"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button></div>`).join('') + `</div>`;
         html += `<h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Mein Garten (${state.myGarden.length})</h3>`;
         if (state.myGarden.length === 0) html += `<div class="text-center py-6 text-stone-400 text-sm">Noch keine Pflanzen im Garten.</div>`;
         else html += `<div class="space-y-3">` + state.myGarden.map(item => `<div onclick="openGardenItemModal('${item.id}')" onkeydown="if(event.key==='Enter'||event.key===' ')openGardenItemModal('${item.id}')" tabindex="0" role="button" class="bg-white rounded-xl p-3 shadow-sm border border-stone-100 flex items-center gap-3 cursor-pointer active:bg-stone-50"><div class="text-2xl w-8 text-center shrink-0">${item.icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate flex items-center gap-1.5">${item.name} ${item.perennial?'<span class="text-purple-500 text-[10px]">∞</span>':''}</h4><div class="flex items-center gap-2 text-xs text-stone-500 mt-0.5"><span class="flex items-center gap-1 text-amber-600">${item.location==='drinnen'?'🏠 Haus':'☀️ Beet'}</span><span>• Tag ${Math.floor((state.currentDate-new Date(item.addedDate))/MS_PER_DAY)}</span></div></div><div class="flex items-center gap-1 shrink-0"><button onclick="event.stopPropagation(); removeFromGarden('${item.id}')" class="p-2 text-stone-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button><i data-lucide="chevron-right" class="w-4 h-4 text-stone-300"></i></div></div>`).join('') + `</div>`;
@@ -459,7 +477,7 @@ function renderModal() {
         const activeHTML = activeTasks.length === 0 ? '' :
             `<div class="mb-4"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2">Heute fällig</h3>` +
             activeTasks.map(t => `<div class="flex items-center gap-3 bg-amber-50 rounded-xl p-3 mb-2 border border-amber-100">
-                <div class="text-xl w-8 text-center">${t.icon==='droplet'?'💧':(t.icon==='flask-conical'?'🧪':'🧺')}</div>
+                <div class="text-xl w-8 text-center">${getTaskIconEmoji(t.icon)}</div>
                 <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${t.title}</p></div>
                 <button onclick="completeTask('${t.id}','${t.type}','${t.plantId}')" class="shrink-0 bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Erledigt</button>
             </div>`).join('') + `</div>`;
