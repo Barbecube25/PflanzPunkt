@@ -1,0 +1,21 @@
+{
+  "name": "pflanzpunkt",
+  "version": "1.0.0",
+  "description": "Smarter Garten-Assistent für Jülich",
+  "scripts": {
+    "build:apk": "./build-android.sh",
+    "build:web": "node -e \"const fs=require('fs'); let h=fs.readFileSync('index.html','utf8'); h=h.replace('<script src=\\\"https://cdn.tailwindcss.com\\\"></script>','<link rel=\\\"stylesheet\\\" href=\\\"tailwind.min.css\\\">').replace('<script src=\\\"https://unpkg.com/lucide@latest\\\"></script>','<script src=\\\"lucide.min.js\\\"></script>'); fs.writeFileSync('www/index.html',h);\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Barbecube25/PflanzPunkt.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "lucide": "^1.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  }
+}

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PflanzPunkt - Dein smarter Garten-Assistent</title>
+    <link rel="stylesheet" href="tailwind.min.css">
+    <script src="lucide.min.js"></script>
+    <style>
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { background-color: #f5f5f4; font-family: system-ui, -apple-system, sans-serif; }
+        .category-header:hover { background-color: rgba(16, 185, 129, 0.05); }
+        .transition-transform { transition: transform 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="flex justify-center text-stone-800 h-screen overflow-hidden">
+
+    <div class="w-full max-w-md bg-white shadow-xl overflow-hidden flex flex-col h-full relative" id="app">
+        <div id="header-container" class="shrink-0 z-10"></div>
+        <div id="nav-container" class="shrink-0 z-10"></div>
+        <div id="main-content" class="flex-1 overflow-y-auto bg-stone-50 relative pb-20 hide-scrollbar"></div>
+        <div id="footer-container" class="bg-white border-t border-stone-200 p-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-20"></div>
+        <div id="modal-container"></div>
+    </div>
+
+<script>
+// --- VOLLSTÄNDIGE DATENBANK (70+ PFLANZEN) ---
+const gardenPlants = [
+    { id: 'aubergine', name: 'Aubergine', minGts: 150, maxGts: 250, method: 'Vorzucht drinnen', icon: '🍆', tips: 'Keimt langsam bei Wärme. Samen nur leicht bedecken.', harvest: 'Aug - Okt', locationReq: 'Sonnig. Regengeschützt.', badNeighbors: ['kartoffeln', 'tomaten'], goodNeighbors: ['buschbohnen', 'spinat'], heavyFeeder: true, frostSensitive: true, harvestDays: 80, pregrow: '8-10 Wochen' },
+    { id: 'artischocke', name: 'Artischocke', minGts: 150, maxGts: 250, method: 'Vorzucht drinnen', icon: '🌿', tips: 'Viel Platz nötig. Vorzucht ab Februar warm.', harvest: 'Aug - Sept', locationReq: 'Vollsonnig. Viel Platz.', heavyFeeder: true, frostSensitive: true, harvestDays: 120, pregrow: '8-10 Wochen' },
+    { id: 'buschbohnen', name: 'Buschbohnen', minGts: 350, maxGts: 600, method: 'Direktsaat', icon: '🫘', tips: 'Frostempfindlich. Samen über Nacht einweichen.', harvest: 'Jul - Okt', locationReq: 'Sonnig bis halbschattig.', badNeighbors: ['erbsen', 'fenchel', 'knoblauch', 'lauch', 'zwiebeln'], goodNeighbors: ['kartoffeln', 'gurken', 'tomaten'], heavyFeeder: false, frostSensitive: true, harvestDays: 60 },
+    { id: 'chili', name: 'Chili', minGts: 100, maxGts: 200, method: 'Vorzucht drinnen', icon: '🌶️', tips: 'Lange Keimdauer. Konstant warm halten.', harvest: 'Aug - Okt', locationReq: 'Sehr sonnig. Warm.', goodNeighbors: ['tomaten', 'basilikum'], heavyFeeder: true, frostSensitive: true, harvestDays: 90, pregrow: '8-10 Wochen' },
+    { id: 'erbsen', name: 'Erbsen', minGts: 150, maxGts: 350, method: 'Direktsaat', icon: '🟢', tips: 'Kälteverträglich. Rankhilfe nötig.', harvest: 'Jun - Aug', locationReq: 'Sonnig. Netz gegen Vögel.', badNeighbors: ['buschbohnen', 'knoblauch', 'zwiebeln', 'lauch'], goodNeighbors: ['karotten', 'radieschen'], heavyFeeder: false, frostSensitive: false, harvestDays: 70 },
+    { id: 'erdbeeren', name: 'Erdbeeren', minGts: 200, maxGts: 400, method: 'Pflanzung', icon: '🍓', tips: 'Lichtkeimer. Boden feucht halten. Mit Stroh mulchen.', harvest: 'Mai - Jul', locationReq: 'Vollsonnig.', badNeighbors: ['kohlrabi'], goodNeighbors: ['knoblauch', 'zwiebeln', 'buschbohnen', 'spinat'], heavyFeeder: false, frostSensitive: false, harvestDays: 60, perennial: true },
+    { id: 'gurken', name: 'Gurken', minGts: 300, maxGts: 450, method: 'Vorzucht / Direktsaat', icon: '🥒', tips: 'Wurzelempfindlich. Viel Wasser nötig.', harvest: 'Jul - Okt', locationReq: 'Sonnig. Windgeschützt.', badNeighbors: ['radieschen', 'tomaten'], goodNeighbors: ['buschbohnen', 'dill'], heavyFeeder: true, frostSensitive: true, harvestDays: 65, pregrow: '3-4 Wochen' },
+    { id: 'karotten', name: 'Karotten', minGts: 180, maxGts: 450, method: 'Direktsaat', icon: '🥕', tips: 'Boden tief lockern. Nicht zu dicht säen.', harvest: 'Jun - Okt', locationReq: 'Sonnig. Tiefgründig.', goodNeighbors: ['zwiebeln', 'lauch', 'erbsen'], heavyFeeder: false, frostSensitive: false, harvestDays: 90 },
+    { id: 'kartoffeln', name: 'Kartoffeln', minGts: 250, maxGts: 400, method: 'Pflanzung (Knollen)', icon: '🥔', tips: 'Hell vorkeimen. Regelmäßig anhäufeln.', harvest: 'Jul - Okt', locationReq: 'Sonnig. Lockere Erde.', badNeighbors: ['tomaten', 'kuerbis'], goodNeighbors: ['buschbohnen', 'spinat', 'kohlrabi'], heavyFeeder: true, frostSensitive: true, harvestDays: 100, pregrow: '4 Wochen' },
+    { id: 'kuerbis', name: 'Kürbis', minGts: 300, maxGts: 450, method: 'Vorzucht / Direktsaat', icon: '🎃', tips: 'Starkzehrer. Viel Platz einplanen.', harvest: 'Sept - Okt', locationReq: 'Sonnig. Viel Kompost.', badNeighbors: ['kartoffeln'], goodNeighbors: ['zuckermais', 'buschbohnen'], heavyFeeder: true, frostSensitive: true, harvestDays: 110, pregrow: '3-4 Wochen' },
+    { id: 'paprika', name: 'Paprika', minGts: 120, maxGts: 220, method: 'Vorzucht drinnen', icon: '🫑', tips: 'Lange Keimdauer. Wärme zum Keimen.', harvest: 'Jul - Okt', locationReq: 'Vollsonnig. Sehr warm.', badNeighbors: ['fenchel'], goodNeighbors: ['tomaten', 'basilikum'], heavyFeeder: true, frostSensitive: true, harvestDays: 90, pregrow: '8-10 Wochen' },
+    { id: 'radieschen', name: 'Radieschen', minGts: 120, maxGts: 500, method: 'Direktsaat', icon: '🔴', tips: 'Schnellwüchsig. Bei Hitze gießen.', harvest: 'Mai - Okt', locationReq: 'Sonnig bis halbschattig.', badNeighbors: ['gurken'], goodNeighbors: ['karotten', 'erbsen', 'spinat'], heavyFeeder: false, frostSensitive: false, harvestDays: 30 },
+    { id: 'tomaten', name: 'Tomaten', minGts: 200, maxGts: 350, method: 'Vorzucht drinnen', icon: '🍅', tips: 'Tief einpflanzen. Regelmäßig ausgeizen.', harvest: 'Jul - Okt', locationReq: 'Vollsonnig. Regenschutz.', badNeighbors: ['kartoffeln', 'erbsen', 'fenchel'], goodNeighbors: ['basilikum', 'knoblauch', 'petersilie', 'spinat'], heavyFeeder: true, frostSensitive: true, harvestDays: 70, pregrow: '6-8 Wochen' },
+    { id: 'zucchini', name: 'Zucchini', minGts: 300, maxGts: 450, method: 'Vorzucht / Direktsaat', icon: '🥒', tips: 'Platzintensiv. Regelmäßige Ernte lohnt.', harvest: 'Jul - Okt', locationReq: 'Sonnig. Viel Platz.', goodNeighbors: ['erbsen', 'zwiebeln'], heavyFeeder: true, frostSensitive: true, harvestDays: 50, pregrow: '3-4 Wochen' },
+    { id: 'knoblauch', name: 'Knoblauch', minGts: 100, maxGts: 250, method: 'Steckknoblauch', icon: '🧄', tips: '5cm tief stecken. Trocken halten.', harvest: 'Jul - Aug', locationReq: 'Sonnig.', badNeighbors: ['erbsen', 'buschbohnen'], goodNeighbors: ['erdbeeren', 'tomaten'], heavyFeeder: false, frostSensitive: false, harvestDays: 100 },
+    { id: 'zwiebeln', name: 'Zwiebeln', minGts: 180, maxGts: 350, method: 'Steckzwiebeln', icon: '🧅', tips: 'Einfacher als Saat. Unkraut jäten.', harvest: 'Aug - Sept', locationReq: 'Sonnig. Luftig.', badNeighbors: ['erbsen', 'buschbohnen'], goodNeighbors: ['karotten', 'erdbeeren'], heavyFeeder: false, frostSensitive: false, harvestDays: 90 },
+    { id: 'lauch', name: 'Lauch', minGts: 200, maxGts: 400, method: 'Vorzucht', icon: '🧅', tips: 'Tief pflanzen für langen Schaft.', harvest: 'Aug - Mär', locationReq: 'Sonnig.', badNeighbors: ['rotebete', 'erbsen'], goodNeighbors: ['karotten', 'erdbeeren'], heavyFeeder: true, frostSensitive: false, harvestDays: 120, pregrow: '8-10 Wochen' },
+    { id: 'stangenbohnen', name: 'Stangenbohnen', minGts: 350, maxGts: 600, method: 'Direktsaat', icon: '🫘', tips: '2m hohe Stützen nötig. Frostempfindlich.', harvest: 'Jul - Okt', locationReq: 'Sonnig. Windgeschützt.', badNeighbors: ['erbsen', 'fenchel', 'lauch', 'zwiebeln'], goodNeighbors: ['radieschen', 'zucchini'], heavyFeeder: false, frostSensitive: true, harvestDays: 70 },
+    { id: 'rhabarber', name: 'Rhabarber', minGts: 100, maxGts: 300, method: 'Pflanzung', icon: '🎋', tips: 'Ab Juni Erntestopp. Oxalsäure steigt.', harvest: 'Apr - Jun', locationReq: 'Sonnig. 1qm Platz.', goodNeighbors: ['spinat', 'kohlrabi'], heavyFeeder: true, harvestDays: 365, perennial: true },
+    { id: 'himbeeren', name: 'Himbeeren', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🍇', tips: 'Triebe nach Ernte schneiden. Rankhilfe.', harvest: 'Jul - Okt', locationReq: 'Halbschattig.', badNeighbors: ['kartoffeln'], goodNeighbors: ['knoblauch'], heavyFeeder: true, harvestDays: 365, perennial: true },
+    { id: 'heidelbeeren', name: 'Heidelbeeren', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🫐', tips: 'Sauren Boden nötig. Nur Regenwasser.', harvest: 'Jul - Sept', locationReq: 'Sonnig.', heavyFeeder: false, harvestDays: 365, perennial: true },
+    { id: 'blumenkohl', name: 'Blumenkohl', minGts: 200, maxGts: 350, method: 'Vorzucht', icon: '🥦', tips: 'Dunkelkeimer. Blätter über Kopf knicken.', harvest: 'Jun - Okt', locationReq: 'Sonnig. Netz nutzen!', heavyFeeder: true, harvestDays: 80, pregrow: '4-6 Wochen' },
+    { id: 'brokkoli', name: 'Brokkoli', minGts: 150, maxGts: 300, method: 'Vorzucht', icon: '🥦', tips: 'Erntet man die Hauptblume, wächst nach.', harvest: 'Jul - Okt', locationReq: 'Sonnig. Fester Boden.', heavyFeeder: true, harvestDays: 75, pregrow: '4-6 Wochen' },
+    { id: 'gruenkohl', name: 'Grünkohl', minGts: 250, maxGts: 450, method: 'Direktsaat', icon: '🥬', tips: 'Frosthart. Schmeckt nach Frost besser.', harvest: 'Nov - Feb', locationReq: 'Sonnig.', heavyFeeder: true, harvestDays: 120 },
+    { id: 'kohlrabi', name: 'Kohlrabi', minGts: 200, maxGts: 400, method: 'Vorzucht / Pflanzung', icon: '🥬', tips: 'Nicht zu tief setzen. Gleichmäßig gießen.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', badNeighbors: ['erdbeeren'], goodNeighbors: ['buschbohnen', 'kartoffeln'], heavyFeeder: true, harvestDays: 60, pregrow: '4-6 Wochen' },
+    { id: 'wirsing', name: 'Wirsing', minGts: 150, maxGts: 300, method: 'Vorzucht', icon: '🥬', tips: 'Viel Wasser. Fester Standplatz nötig.', harvest: 'Aug - Nov', locationReq: 'Sonnig.', goodNeighbors: ['kartoffeln', 'tomaten'], heavyFeeder: true, harvestDays: 100, pregrow: '4-6 Wochen' },
+    { id: 'kopfsalat', name: 'Kopfsalat', minGts: 120, maxGts: 250, method: 'Vorzucht / Direktsaat', icon: '🥬', tips: 'Lichtkeimer. Keimt bei über 20°C schlecht.', harvest: 'Mai - Okt', locationReq: 'Halbschattig im Sommer.', goodNeighbors: ['tomaten'], heavyFeeder: false, harvestDays: 50, pregrow: '3-4 Wochen' },
+    { id: 'feldsalat', name: 'Feldsalat', minGts: 50, maxGts: 200, method: 'Direktsaat', icon: '🥗', tips: 'Frosthart. Ideal für den Winter.', harvest: 'Okt - Mär', locationReq: 'Sonnig.', goodNeighbors: ['zwiebeln'], heavyFeeder: false, harvestDays: 50 },
+    { id: 'rucola', name: 'Rucola', minGts: 150, maxGts: 500, method: 'Direktsaat', icon: '🌿', tips: 'Schutznetz gegen Erdflöhe.', harvest: 'Mai - Okt', locationReq: 'Halbschattig.', goodNeighbors: ['karotten'], heavyFeeder: false, harvestDays: 35 },
+    { id: 'mangold', name: 'Mangold', minGts: 250, maxGts: 450, method: 'Direktsaat', icon: '🥬', tips: 'Äußere Blätter fortlaufend ernten.', harvest: 'Jun - Nov', locationReq: 'Sonnig.', heavyFeeder: false, harvestDays: 60 },
+    { id: 'basilikum', name: 'Basilikum', minGts: 300, maxGts: 500, method: 'Vorzucht drinnen', icon: '🌿', tips: 'Lichtkeimer. Frostempfindlich.', harvest: 'Jun - Sept', locationReq: 'Sonnig. Regengeschützt.', goodNeighbors: ['tomaten', 'gurken'], heavyFeeder: true, harvestDays: 40, pregrow: '4-6 Wochen' },
+    { id: 'petersilie', name: 'Petersilie', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Dunkelkeimer. Keimt langsam.', harvest: 'Jun - Nov', locationReq: 'Halbschattig.', goodNeighbors: ['tomaten'], heavyFeeder: false, harvestDays: 70 },
+    { id: 'schnittlauch', name: 'Schnittlauch', minGts: 180, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Dunkelkeimer. Verträgt Halbschatten.', harvest: 'Mai - Okt', locationReq: 'Sonnig.', goodNeighbors: ['karotten'], heavyFeeder: false, harvestDays: 45 },
+    { id: 'rosmarin', name: 'Rosmarin', minGts: 250, maxGts: 450, method: 'Pflanzung', icon: '🌿', tips: 'Winterschutz nötig. Mag Trockenheit.', harvest: 'Ganzjährig', locationReq: 'Vollsonnig.', heavyFeeder: false, harvestDays: 90, perennial: true },
+    { id: 'salbei', name: 'Salbei', minGts: 200, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Im Frühjahr zurückschneiden.', harvest: 'Mai - Okt', locationReq: 'Vollsonnig.', heavyFeeder: false, harvestDays: 90, perennial: true },
+    { id: 'thymian', name: 'Thymian', minGts: 200, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Lichtkeimer. Sonne essenziell.', harvest: 'Ganzjährig', locationReq: 'Heiß.', heavyFeeder: false, harvestDays: 60, perennial: true },
+    { id: 'minze', name: 'Minze', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Wuchert stark. Im Topf halten.', harvest: 'Mai - Okt', locationReq: 'Halbschattig.', heavyFeeder: false, harvestDays: 60, perennial: true },
+    { id: 'pfefferminze', name: 'Pfefferminze', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Wuchert stark. Im Topf halten. Intensiver Duft.', harvest: 'Mai - Okt', locationReq: 'Halbschattig.', heavyFeeder: false, harvestDays: 60, perennial: true },
+    { id: 'sonnenblume', name: 'Sonnenblume', minGts: 250, maxGts: 450, method: 'Direktsaat', icon: '🌻', tips: 'Viel Wasser. Windschutz nötig.', harvest: 'Aug - Okt', locationReq: 'Vollsonnig.', heavyFeeder: true, harvestDays: 80 },
+    { id: 'tagetes', name: 'Tagetes', minGts: 250, maxGts: 400, method: 'Direktsaat', icon: '🌼', tips: 'Bekämpft Nematoden im Boden.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', goodNeighbors: ['tomaten'], heavyFeeder: false, harvestDays: 50 },
+    { id: 'physalis', name: 'Physalis', minGts: 150, maxGts: 250, method: 'Vorzucht drinnen', icon: '🍒', tips: 'Lange Reifezeit. Braucht Stab.', harvest: 'Aug - Okt', locationReq: 'Vollsonnig. Warm.', goodNeighbors: [], heavyFeeder: true, harvestDays: 100, pregrow: '8-10 Wochen' },
+    { id: 'wassermelone', name: 'Wassermelone', minGts: 350, maxGts: 500, method: 'Vorzucht drinnen', icon: '🍉', tips: 'Viel Wärme. Empfindliche Wurzeln.', harvest: 'Aug - Sept', locationReq: 'Extrem sonnig.', goodNeighbors: ['zuckermais'], heavyFeeder: true, frostSensitive: true, harvestDays: 90, pregrow: '3-4 Wochen' },
+    { id: 'zuckermelone', name: 'Zuckermelone', minGts: 350, maxGts: 500, method: 'Vorzucht drinnen', icon: '🍈', tips: 'Entspitzen für mehr Seitentriebe.', harvest: 'Aug - Sept', locationReq: 'Gewächshaus ideal.', goodNeighbors: [], heavyFeeder: true, harvestDays: 80, pregrow: '3-4 Wochen' },
+    { id: 'pakchoi', name: 'Pak Choi', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🥬', tips: 'Ideal für den Herbstbau.', harvest: 'Aug - Okt', locationReq: 'Halbschattig.', goodNeighbors: ['erbsen', 'karotten'], heavyFeeder: true, harvestDays: 50 },
+    { id: 'baerlauch',name: 'Bärlauch', minGts: 50, maxGts: 150, method: 'Direktsaat', icon: '🌿', tips: 'Kaltkeimer. Braucht Frost.', harvest: 'Mär - Mai', locationReq: 'Schattig.', perennial: true, harvestDays: 365 },
+    { id: 'meerrettich', name: 'Meerrettich', minGts: 150, maxGts: 300, method: 'Pflanzung', icon: '🌱', tips: 'Wuchert. Tiefer Boden nötig.', harvest: 'Okt - Mär', locationReq: 'Sonnig.', perennial: true, harvestDays: 200 },
+    { id: 'dickebohnen', name: 'Dicke Bohnen', minGts: 50, maxGts: 200, method: 'Direktsaat', icon: '🫘', tips: 'Tiefe Saat (5cm). Verträgt leichten Frost.', harvest: 'Jun - Aug', locationReq: 'Sonnig.', badNeighbors: ['erbsen', 'zwiebeln'], goodNeighbors: ['karotten', 'spinat'], heavyFeeder: false, frostSensitive: false, harvestDays: 90 },
+    { id: 'rotebete', name: 'Rote Bete', minGts: 200, maxGts: 450, method: 'Direktsaat', icon: '🟣', tips: 'Boden tiefgründig lockern. Knäuelfrüchte vereinzeln.', harvest: 'Jul - Okt', locationReq: 'Sonnig.', badNeighbors: ['lauch'], goodNeighbors: ['karotten', 'zwiebeln'], heavyFeeder: false, frostSensitive: false, harvestDays: 80 },
+    { id: 'spinat', name: 'Spinat', minGts: 100, maxGts: 300, method: 'Direktsaat', icon: '🍃', tips: 'Schießt bei Hitze. Früh oder spät säen.', harvest: 'Mai - Jun', locationReq: 'Halbschattig.', goodNeighbors: ['erdbeeren', 'tomaten', 'karotten'], heavyFeeder: false, frostSensitive: false, harvestDays: 40 },
+    { id: 'zuckermais', name: 'Zuckermais', minGts: 350, maxGts: 500, method: 'Vorzucht / Direktsaat', icon: '🌽', tips: 'Windbestäuber. In Gruppen pflanzen.', harvest: 'Aug - Sept', locationReq: 'Vollsonnig.', goodNeighbors: ['kuerbis', 'buschbohnen'], heavyFeeder: true, frostSensitive: true, harvestDays: 85, pregrow: '3-4 Wochen' },
+    { id: 'spargel', name: 'Spargel', minGts: 150, maxGts: 300, method: 'Pflanzung', icon: '🎋', tips: 'Erst ab 3. Jahr ernten. Dauerkultur.', harvest: 'Apr - Jun', locationReq: 'Vollsonnig. Tief lockern.', goodNeighbors: ['petersilie', 'tomaten', 'basilikum'], heavyFeeder: false, frostSensitive: false, harvestDays: 365, perennial: true },
+    { id: 'topinambur', name: 'Topinambur', minGts: 200, maxGts: 400, method: 'Pflanzung (Knollen)', icon: '🥔', tips: 'Wuchert stark. Knollen im Herbst ernten.', harvest: 'Okt - Mär', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 180, perennial: true },
+    { id: 'rosenkohl', name: 'Rosenkohl', minGts: 150, maxGts: 300, method: 'Vorzucht', icon: '🥬', tips: 'Frosthart. Erntequalität nach Frost besser.', harvest: 'Okt - Feb', locationReq: 'Sonnig. Fester Boden.', heavyFeeder: true, frostSensitive: false, harvestDays: 150, pregrow: '4-6 Wochen' },
+    { id: 'rotkohl', name: 'Rotkohl', minGts: 150, maxGts: 300, method: 'Vorzucht', icon: '🥬', tips: 'Fester Boden wichtig. Tief gießen.', harvest: 'Aug - Nov', locationReq: 'Sonnig.', heavyFeeder: true, frostSensitive: false, harvestDays: 120, pregrow: '4-6 Wochen' },
+    { id: 'weisskohl', name: 'Weißkohl', minGts: 150, maxGts: 300, method: 'Vorzucht', icon: '🥬', tips: 'Für Sauerkraut geeignet. Viel Platz nötig.', harvest: 'Aug - Nov', locationReq: 'Sonnig.', heavyFeeder: true, frostSensitive: false, harvestDays: 120, pregrow: '4-6 Wochen' },
+    { id: 'romanesco', name: 'Romanesco', minGts: 200, maxGts: 350, method: 'Vorzucht', icon: '🥦', tips: 'Ähnlich Blumenkohl. Lange Standzeit.', harvest: 'Sept - Nov', locationReq: 'Sonnig.', heavyFeeder: true, frostSensitive: false, harvestDays: 100, pregrow: '4-6 Wochen' },
+    { id: 'chinakohl', name: 'Chinakohl', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🥬', tips: 'Schießt leicht. Nur Herbstanbau empfohlen.', harvest: 'Sept - Nov', locationReq: 'Halbschattig.', goodNeighbors: ['erbsen', 'karotten'], heavyFeeder: true, frostSensitive: false, harvestDays: 70 },
+    { id: 'mairuebe', name: 'Mairübe', minGts: 150, maxGts: 350, method: 'Direktsaat', icon: '⚪', tips: 'Schnellwüchsig. Mehrere Saatfolgen möglich.', harvest: 'Mai - Sept', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 50 },
+    { id: 'pastinake', name: 'Pastinake', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🥕', tips: 'Frisches Saatgut verwenden. Boden tief lockern.', harvest: 'Okt - Mär', locationReq: 'Sonnig.', goodNeighbors: ['karotten', 'erbsen'], heavyFeeder: false, frostSensitive: false, harvestDays: 130 },
+    { id: 'schwarzwurzel', name: 'Schwarzwurzel', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🟤', tips: 'Boden tief lockern. Handschuhe beim Ernten.', harvest: 'Okt - Mär', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 150 },
+    { id: 'rettich', name: 'Rettich', minGts: 150, maxGts: 450, method: 'Direktsaat', icon: '🤍', tips: 'Regelmäßig gießen gegen Schärfe.', harvest: 'Mai - Sept', locationReq: 'Sonnig.', goodNeighbors: ['karotten', 'erbsen'], heavyFeeder: false, frostSensitive: false, harvestDays: 60 },
+    { id: 'eisbergsalat', name: 'Eisbergsalat', minGts: 120, maxGts: 250, method: 'Vorzucht / Direktsaat', icon: '🥬', tips: 'Hitzeverträglicher als Kopfsalat. Viel Wasser.', harvest: 'Jun - Okt', locationReq: 'Halbschattig im Sommer.', goodNeighbors: ['tomaten'], heavyFeeder: false, frostSensitive: false, harvestDays: 60, pregrow: '3-4 Wochen' },
+    { id: 'endivie', name: 'Endivie', minGts: 150, maxGts: 350, method: 'Direktsaat', icon: '🥗', tips: 'Einbleichen für milderen Geschmack.', harvest: 'Aug - Nov', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 80 },
+    { id: 'chicoree', name: 'Chicorée', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🥬', tips: 'Im Herbst ausgraben, kühl treiben.', harvest: 'Dez - Mär', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 180 },
+    { id: 'pfluecksalat', name: 'Pflücksalat', minGts: 120, maxGts: 350, method: 'Direktsaat', icon: '🥬', tips: 'Blatt für Blatt ernten, wächst nach.', harvest: 'Mai - Okt', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 45 },
+    { id: 'radicchio', name: 'Radicchio', minGts: 150, maxGts: 350, method: 'Direktsaat', icon: '🥬', tips: 'Bildet Kopf erst bei kühlem Wetter.', harvest: 'Sept - Nov', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 90 },
+    { id: 'winterportulak', name: 'Winterportulak', minGts: 50, maxGts: 200, method: 'Direktsaat', icon: '🥗', tips: 'Frosthart bis -15°C. Ideal im Kaltbeet.', harvest: 'Okt - Mär', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 60 },
+    { id: 'bohnenkraut', name: 'Bohnenkraut', minGts: 250, maxGts: 450, method: 'Direktsaat', icon: '🌿', tips: 'Passt gut zu Bohnengerichten.', harvest: 'Jun - Okt', locationReq: 'Sonnig. Trocken.', goodNeighbors: ['buschbohnen', 'stangenbohnen'], heavyFeeder: false, frostSensitive: false, harvestDays: 60 },
+    { id: 'dill', name: 'Dill', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Nicht neben Fenchel pflanzen.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', badNeighbors: ['fenchel'], goodNeighbors: ['gurken', 'karotten'], heavyFeeder: false, frostSensitive: false, harvestDays: 50 },
+    { id: 'koriander', name: 'Koriander', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Schießt schnell. Mehrmals nachsäen.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 50 },
+    { id: 'kresse', name: 'Kresse', minGts: 50, maxGts: 400, method: 'Direktsaat', icon: '🌱', tips: 'Keimt sehr schnell. Ideal für Kinder. Wächst prima auf der Fensterbank.', harvest: 'Ganzjährig', locationReq: 'Halbschattig. Innenraum oder Fensterbank.', heavyFeeder: false, frostSensitive: false, harvestDays: 10, indoorOnly: true },
+    { id: 'liebstoeckel', name: 'Liebstöckel', minGts: 150, maxGts: 350, method: 'Pflanzung', icon: '🌿', tips: 'Wird sehr groß. Einzelne Stiele ernten.', harvest: 'Mai - Sept', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 90, perennial: true },
+    { id: 'oregano', name: 'Oregano', minGts: 200, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Trocknet gut. Ernte vor der Blüte.', harvest: 'Jun - Sept', locationReq: 'Vollsonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 60, perennial: true },
+    { id: 'zitronenmelisse', name: 'Zitronenmelisse', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Wuchert. Regelmäßig schneiden.', harvest: 'Mai - Sept', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 60, perennial: true }
+].sort((a, b) => a.name.localeCompare(b.name));
+
+const glossaryTerms = [
+    { term: "Abhärten", explanation: "Pflanzen schrittweise an Wind und UV-Licht gewöhnen." },
+    { term: "Ausgeizen", explanation: "Seitentriebe in Blattachseln entfernen (v.a. bei Tomaten)." },
+    { term: "Direktsaat", explanation: "Samen direkt ins Beet säen. Keine Vorzucht nötig." },
+    { term: "Dunkelkeimer", explanation: "Samen brauchen Dunkelheit. Mit Erde ca. 2x Samendicke bedecken." },
+    { term: "Eisheilige", explanation: "Mitte Mai. Ende der Nachtfrostgefahr." },
+    { term: "GTS", explanation: "Grünlandtemperatursumme. Zeigt Wachstumsstart ab 1. Januar." },
+    { term: "Kaltkeimer", explanation: "Samen brauchen eine Frostperiode zum Keimen." },
+    { term: "Lichtkeimer", explanation: "Samen brauchen Licht. Nicht mit Erde bedecken." },
+    { term: "Mehrjährig", explanation: "Pflanzen überdauern mehrere Jahre am selben Ort." },
+    { term: "Mischkultur", explanation: "Pflanzen nebeneinander setzen, die sich unterstützen." },
+    { term: "Mulchen", explanation: "Boden mit Stroh abdecken. Hält Wasser und unterdrückt Unkraut." },
+    { term: "Pikieren", explanation: "Sämlinge in eigene Töpfe vereinzeln." },
+    { term: "Schießen", explanation: "Vorzeitige Blüte durch Hitze. Gemüse wird oft ungenießbar." },
+    { term: "Starkzehrer", explanation: "Pflanzen mit hohem Nährstoffbedarf. Brauchen viel Kompost." }
+];
+
+// --- APP STATE ---
+let state = {
+    currentDate: new Date(),
+    gts: 0,
+    weather: { condition: 'Wolken', temp: 0 },
+    location: 'Jülich, NRW',
+    isLoadingWeather: true,
+    realData: null,
+    forecast: [],
+    activeTab: 'aktuell',
+    searchQuery: '',
+    favorites: [],
+    selectedPlant: null,
+    showPlantingOptions: false,
+    selectedGardenItem: null,
+    myGarden: [],
+    tasks: [],
+    collapsedCategories: { 
+        '🏠 Drinnen vorziehen': true, 
+        '🌱 Direktsaat (Freiland)': true, 
+        '🧤 Pflanzen & Stecken': true, 
+        '🌱 Aussaat': true, 
+        'lastChance': true,
+        'upcoming': true,
+        'missed': true
+    }
+};
+
+// --- LOGIK ---
+const MS_PER_DAY = 86400000;
+
+function toggleCategory(cat) {
+    state.collapsedCategories[cat] = !state.collapsedCategories[cat];
+    renderApp();
+}
+
+function toggleFavorite(id) {
+    state.favorites = state.favorites.includes(id) ? state.favorites.filter(f => f !== id) : [...state.favorites, id];
+    renderApp();
+}
+
+function simulateNextDay() {
+    const nextDate = new Date(state.currentDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    state.currentDate = nextDate;
+    let temp, condition;
+    if (state.forecast && state.forecast.length > 0) {
+        const day = state.forecast.shift();
+        temp = day.temp;
+        condition = wmoToCondition(day.weatherCode);
+    } else {
+        temp = Math.random() * (22 - 6) + 6;
+        condition = Math.random() > 0.7 ? 'Regen' : 'Sonne';
+    }
+    state.weather = { condition, temp };
+    const month = nextDate.getMonth();
+    const factor = month === 0 ? 0.5 : (month === 1 ? 0.75 : 1.0);
+    if (temp > 0) state.gts += temp * factor;
+    generateTasks();
+    renderApp();
+}
+
+function resetSimulation() {
+    if (state.realData) {
+        state.currentDate = new Date(state.realData.date);
+        state.gts = state.realData.gts;
+        state.weather = { ...state.realData.weather };
+        state.forecast = state.realData.forecast ? [...state.realData.forecast] : [];
+    }
+    generateTasks();
+    renderApp();
+}
+
+function handleAddToGarden(locationOption) {
+    const dateInput = document.getElementById('planting-date');
+    let selectedDate = new Date(state.currentDate);
+    if (dateInput && dateInput.value) {
+        selectedDate = new Date(dateInput.value);
+        selectedDate.setHours(12, 0, 0, 0); 
+    }
+    const p = state.selectedPlant;
+    state.myGarden.push({
+        id: Math.random().toString(36).substr(2, 9),
+        plantId: p.id, name: p.name, icon: p.icon, location: locationOption, 
+        addedDate: selectedDate.toISOString(), lastWatered: state.currentDate.toISOString(), 
+        lastFertilized: selectedDate.toISOString(), perennial: p.perennial || false,
+        taskHistory: [{ type: 'planted', label: 'Eingepflanzt', icon: '🌱', date: selectedDate.toISOString() }]
+    });
+    state.showPlantingOptions = false;
+    state.selectedPlant = null;
+    state.activeTab = 'aufgaben';
+    generateTasks();
+    renderApp();
+}
+
+function completeTask(taskId, type, plantInstanceId) {
+    state.myGarden = state.myGarden.map(p => {
+        if (p.id !== plantInstanceId) return p;
+        const history = p.taskHistory || [];
+        if (type === 'water') return { ...p, lastWatered: state.currentDate.toISOString(), taskHistory: [...history, { type: 'water', label: 'Gegossen', icon: '💧', date: state.currentDate.toISOString() }] };
+        if (type === 'fertilize') return { ...p, lastFertilized: state.currentDate.toISOString(), taskHistory: [...history, { type: 'fertilize', label: 'Gedüngt', icon: '🧪', date: state.currentDate.toISOString() }] };
+        if (type === 'transplant') return { ...p, location: 'draussen', taskHistory: [...history, { type: 'transplant', label: 'Ins Freiland gepflanzt', icon: '🌱', date: state.currentDate.toISOString() }] };
+        if (type === 'frost') return { ...p, taskHistory: [...history, { type: 'frost', label: 'Frostschutz angebracht', icon: '❄️', date: state.currentDate.toISOString() }] };
+        return { ...p, taskHistory: [...history, { type: 'harvest', label: 'Geerntet', icon: '🧺', date: state.currentDate.toISOString() }] };
+    });
+    generateTasks();
+    renderApp();
+}
+
+function removeFromGarden(id) {
+    state.myGarden = state.myGarden.filter(p => p.id !== id);
+    generateTasks();
+    renderApp();
+}
+
+function openGardenItemModal(id) {
+    state.selectedGardenItem = id;
+    state.selectedPlant = null;
+    renderApp();
+}
+
+function closeGardenItemModal() {
+    state.selectedGardenItem = null;
+    renderApp();
+}
+
+function generateTasks() {
+    const tasks = [];
+    const isRaining = ['Regen', 'Schnee', 'Gewitter'].includes(state.weather.condition);
+    const isFrosty = state.weather.temp <= 3;
+    state.myGarden.forEach(item => {
+        const plantDef = gardenPlants.find(p => p.id === item.plantId);
+        if(!plantDef) return;
+        const daysSinceAdded = Math.floor((state.currentDate - new Date(item.addedDate)) / 86400000);
+        const daysSinceWatered = Math.floor((state.currentDate - new Date(item.lastWatered)) / 86400000);
+
+        if (item.location === 'drinnen' && daysSinceWatered >= 2) {
+            tasks.push({ id: `w-${item.id}`, type: 'water', plantId: item.id, icon: 'droplet', title: `${item.name} gießen`, desc: 'Boden prüfen.', urgency: 'mittel', color: 'bg-blue-100', iconColor: 'text-blue-500' });
+        }
+        if (item.location === 'draussen' && daysSinceWatered >= 3 && !isRaining) {
+            tasks.push({ id: `w-${item.id}`, type: 'water', plantId: item.id, icon: 'droplet', title: `${item.name} gießen`, desc: 'Kein Regen – Boden prüfen und gießen.', urgency: 'mittel', color: 'bg-blue-100', iconColor: 'text-blue-500' });
+        }
+        if (item.location === 'drinnen' && !plantDef.indoorOnly && plantDef.minGts && plantDef.maxGts && state.gts >= plantDef.minGts && state.gts <= plantDef.maxGts && !isRaining && !isFrosty) {
+            tasks.push({ id: `out-${item.id}`, type: 'transplant', plantId: item.id, icon: 'sprout', title: `${item.name} ins Freiland pflanzen`, desc: `Jetzt guter Zeitpunkt – GTS ${state.gts.toFixed(0)}°C (ab ${plantDef.minGts}°C). Wetter passt!`, urgency: 'mittel', color: 'bg-lime-100', iconColor: 'text-lime-600' });
+        }
+        if (item.location === 'draussen' && plantDef.frostSensitive && isFrosty) {
+            tasks.push({ id: `frost-${item.id}`, type: 'frost', plantId: item.id, icon: 'snowflake', title: `${item.name} vor Frost schützen`, desc: `Temperatur: ${state.weather.temp.toFixed(1)}°C – Frostschutz empfohlen!`, urgency: 'hoch', color: 'bg-sky-100', iconColor: 'text-sky-600' });
+        }
+        if (plantDef.heavyFeeder && Math.floor((state.currentDate - new Date(item.lastFertilized))/86400000) >= 28) {
+            tasks.push({ id: `fert-${item.id}`, type: 'fertilize', plantId: item.id, icon: 'flask-conical', title: `${item.name} düngen`, desc: 'Braucht Nährstoffe.', urgency: 'mittel', color: 'bg-emerald-100', iconColor: 'text-emerald-600' });
+        }
+        if (daysSinceAdded >= (plantDef.harvestDays || 60)) {
+            tasks.push({ id: `h-${item.id}`, type: 'harvest', plantId: item.id, icon: 'shopping-basket', title: `${item.name} ernten`, desc: 'Zeitreif!', urgency: 'hoch', color: 'bg-purple-100', iconColor: 'text-purple-500' });
+        }
+    });
+    state.tasks = tasks;
+}
+
+// --- RENDERING ---
+function getTaskIconEmoji(icon) {
+    const map = { 'droplet': '💧', 'flask-conical': '🧪', 'sprout': '🌱', 'snowflake': '❄️', 'shopping-basket': '🧺' };
+    return map[icon] || '🧺';
+}
+
+function wmoToCondition(code) {
+    if (code <= 1) return 'Sonne';
+    if (code <= 3) return 'Wolken';
+    if (code === 45 || code === 48) return 'Nebel';
+    if (code >= 51 && code <= 67) return 'Regen';
+    if (code >= 71 && code <= 77) return 'Schnee';
+    if (code >= 80 && code <= 82) return 'Regen';
+    if (code === 85 || code === 86) return 'Schnee';
+    if (code >= 95) return 'Gewitter';
+    return 'Wolken';
+}
+
+async function fetchWeather() {
+    state.isLoadingWeather = true; renderHeader();
+    try {
+        const lat = 50.9224; const lon = 6.3610; const today = new Date();
+        const startStr = `${today.getFullYear()}-01-01`; const todayStr = today.toISOString().split('T')[0];
+        const futureDate = new Date(today); futureDate.setDate(futureDate.getDate() + 7);
+        const futureStr = futureDate.toISOString().split('T')[0];
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_mean,weather_code&current=temperature_2m,weather_code&timezone=Europe%2FBerlin&start_date=${startStr}&end_date=${futureStr}`);
+        const data = await res.json();
+        let rGts = 0; const tmps = data.daily.temperature_2m_mean;
+        const todayIdx = data.daily.time.indexOf(todayStr);
+        const histEnd = todayIdx >= 0 ? todayIdx : Math.max(0, tmps.length - 8); // 8 = today + 7 forecast days
+        for (let i = 0; i <= histEnd; i++) {
+            if (tmps[i] > 0) {
+                const d = new Date(data.daily.time[i]);
+                rGts += tmps[i] * (d.getMonth() === 0 ? 0.5 : (d.getMonth() === 1 ? 0.75 : 1.0));
+            }
+        }
+        const currentTemp = data.current ? data.current.temperature_2m : tmps[histEnd];
+        const codes = data.daily.weather_code;
+        const currentCode = data.current ? data.current.weather_code : (codes && codes.length ? codes[histEnd] : 0);
+        const forecast = [];
+        for (let i = histEnd + 1; i < data.daily.time.length; i++) {
+            forecast.push({ date: data.daily.time[i], temp: tmps[i], weatherCode: codes[i] });
+        }
+        state.gts = rGts; state.weather = { condition: wmoToCondition(currentCode), temp: currentTemp };
+        state.currentDate = today; state.forecast = forecast;
+        state.realData = { gts: rGts, weather: state.weather, date: today, forecast: [...forecast] };
+    } catch (e) { state.gts = 175; state.weather = { condition: 'Wolken', temp: 10 }; state.forecast = []; }
+    state.isLoadingWeather = false; generateTasks(); renderApp();
+}
+
+function renderHeader() {
+    const d = state.currentDate;
+    const dateStr = `${String(d.getDate()).padStart(2,'0')}. ${d.toLocaleString('de-DE', {month:'long'})}`;
+    document.getElementById('header-container').innerHTML = `
+        <header class="bg-emerald-600 text-white p-4 pb-4 shadow-md">
+          <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold flex items-center gap-3">PflanzPunkt</h1>
+            <div class="bg-emerald-700/50 px-3 py-1 rounded-full text-xs"><i data-lucide="map-pin" class="w-3 h-3 inline mr-1"></i> ${state.location}</div>
+          </div>
+          <div class="flex justify-between items-end bg-emerald-700/30 p-3 rounded-xl">
+            <div><p class="text-emerald-100 text-xs mb-1 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateStr}</p>
+            <h2 class="text-2xl font-extrabold tracking-tight">${state.isLoadingWeather ? '...' : state.gts.toFixed(1)} <span class="text-sm font-normal text-emerald-200">°C GTS</span></h2></div>
+            <div class="text-right text-xs">
+                <div class="flex items-center gap-2 px-2 py-1 rounded-lg font-bold bg-emerald-500/50 text-emerald-50">${state.weather.temp.toFixed(1)}° <span>${state.weather.condition}</span></div>
+            </div>
+          </div>
+        </header>`;
+}
+
+function renderNav() {
+    const tabs = [{id:'aktuell',icon:'clock',label:'Säen'},{id:'katalog',icon:'book-a',label:'Katalog'},{id:'aufgaben',icon:'list-todo',label:'Aufgaben',badge:state.tasks.length},{id:'favoriten',icon:'heart',label:'Favoriten'},{id:'lexikon',icon:'book-open',label:'Lexikon'}];
+    let h = '<div class="flex bg-white border-b border-stone-200 shrink-0 overflow-x-auto hide-scrollbar">';
+    tabs.forEach(t => {
+        const active = state.activeTab === t.id;
+        h += `<button onclick="state.activeTab='${t.id}'; renderApp();" class="flex-1 min-w-[65px] py-2.5 text-[10px] sm:text-xs font-semibold flex flex-col justify-center items-center gap-1 border-b-2 transition-colors ${active?'border-emerald-600 text-emerald-700':'border-transparent text-stone-500'}">
+            <div class="relative"><i data-lucide="${t.icon}" class="w-4 h-4" ${t.id==='favoriten'&&active?'fill="currentColor"':''}></i>${t.badge>0?`<span class="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] w-3.5 h-3.5 flex items-center justify-center rounded-full font-bold">${t.badge}</span>`:''}</div><span>${t.label}</span></button>`;
+    });
+    document.getElementById('nav-container').innerHTML = h + '</div>';
+}
+
+function getPlantCardHTML(p) {
+    const isFav = state.favorites.includes(p.id);
+    return `<div onclick="openPlantModal('${p.id}')" class="bg-white rounded-xl p-3 shadow-sm border border-stone-100 flex items-center gap-3 cursor-pointer hover:border-emerald-200 transition-all">
+        <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-xl shrink-0">${p.icon}</div>
+        <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-stone-800 truncate flex items-center gap-1.5">${p.name} ${p.perennial?'<span class="text-purple-500 text-[10px]">∞</span>':''}</h4>
+            <p class="text-xs text-stone-500 truncate">${p.method}</p>
+        </div>
+        <button onclick="event.stopPropagation(); toggleFavorite('${p.id}');" class="shrink-0 p-1"><i data-lucide="heart" class="w-5 h-5 ${isFav?'text-red-500 fill-red-500':'text-stone-300'}"></i></button>
+    </div>`;
+}
+
+function renderContent() {
+    const container = document.getElementById('main-content');
+    let html = '';
+    if (state.activeTab === 'aktuell') {
+        const cGts = state.gts;
+        const lastChance = gardenPlants.filter(p => cGts >= p.minGts && cGts <= p.maxGts && (p.maxGts - cGts) <= 40);
+        const current = gardenPlants.filter(p => cGts >= p.minGts && cGts <= p.maxGts && (p.maxGts - cGts) > 40);
+        const upcoming = gardenPlants.filter(p => cGts < p.minGts && cGts >= p.minGts - 80);
+        const missed = gardenPlants.filter(p => cGts > p.maxGts);
+
+        const grouped = current.reduce((acc, rec) => {
+            const m = rec.method.toLowerCase();
+            let cat = m.includes('vorzucht') ? '🏠 Drinnen vorziehen' : (m.includes('direktsaat') ? '🌱 Direktsaat (Freiland)' : (m.includes('pflanzung') ? '🧤 Pflanzen & Stecken' : '🌱 Aussaat'));
+            if (!acc[cat]) acc[cat] = []; acc[cat].push(rec); return acc;
+        }, {});
+
+        html += `<div class="p-4"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Ideal bei ${state.gts.toFixed(0)}°C</h3>`;
+        ['🏠 Drinnen vorziehen', '🌱 Direktsaat (Freiland)', '🧤 Pflanzen & Stecken', '🌱 Aussaat'].forEach(cat => {
+            if (grouped[cat]) {
+                const col = state.collapsedCategories[cat] !== false;
+                html += `<div class="mb-4">
+                    <h4 onclick="toggleCategory('${cat}')" class="category-header text-sm font-bold text-emerald-800 mb-2.5 flex items-center justify-between cursor-pointer border-b border-stone-200 pb-1 p-1 transition-all">
+                        <div class="flex items-center gap-2">${cat} <span class="text-[10px] opacity-60">${grouped[cat].length}</span></div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform ${col?'':'rotate-180'}"></i>
+                    </h4>
+                    <div class="space-y-3 ${col?'hidden':''} transition-all">` + grouped[cat].map(p => getPlantCardHTML(p)).join('') + `</div></div>`;
+            }
+        });
+
+        if (lastChance.length > 0) {
+            const col = state.collapsedCategories['lastChance'] !== false;
+            html += `<div class="mb-6 mt-8">
+                <h4 onclick="toggleCategory('lastChance')" class="text-sm font-bold text-amber-600 mb-3 flex items-center justify-between cursor-pointer border-b border-amber-100 pb-1 transition-all">
+                    <div class="flex items-center gap-2 uppercase tracking-wide text-xs"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Letzte Chance (${lastChance.length})</div>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform ${col?'':'rotate-180'}"></i></h4>
+                <div class="space-y-3 ${col?'hidden':''}">` + lastChance.map(p => getPlantCardHTML(p).replace('border-stone-100','border-amber-200 bg-amber-50/30')).join('') + `</div></div>`;
+        }
+
+        if (upcoming.length > 0) {
+            const col = state.collapsedCategories['upcoming'] !== false;
+            html += `<div class="mb-6">
+                <h4 onclick="toggleCategory('upcoming')" class="text-sm font-bold text-sky-600 mb-3 flex items-center justify-between cursor-pointer border-b border-sky-100 pb-1 transition-all">
+                    <div class="flex items-center gap-2 uppercase tracking-wide text-xs"><i data-lucide="cloud" class="w-4 h-4"></i> Bald möglich (${upcoming.length})</div>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform ${col?'':'rotate-180'}"></i></h4>
+                <div class="space-y-3 ${col?'hidden':''}">` + upcoming.map(p => `<div onclick="openPlantModal('${p.id}')" class="bg-white rounded-xl p-3 border border-stone-100 flex items-center gap-3 cursor-pointer opacity-80"><div class="text-2xl w-8 text-center grayscale opacity-50">${p.icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-600 truncate">${p.name}</h4><div class="w-full bg-stone-100 h-1 rounded-full mt-1"><div class="bg-sky-400 h-1 rounded-full" style="width:${Math.min(100, (state.gts/p.minGts)*100)}%"></div></div></div></div>`).join('') + `</div></div>`;
+        }
+
+        if (missed.length > 0) {
+            const col = state.collapsedCategories['missed'] !== false;
+            html += `<div class="mb-6">
+                <h4 onclick="toggleCategory('missed')" class="text-sm font-bold text-stone-500 mb-3 flex items-center justify-between cursor-pointer border-b border-stone-200 pb-1 transition-all">
+                    <div class="flex items-center gap-2 uppercase tracking-wide text-xs"><i data-lucide="clock" class="w-4 h-4"></i> Saison vorbei (${missed.length})</div>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform ${col?'':'rotate-180'}"></i></h4>
+                <div class="space-y-2 ${col?'hidden':''}">` + missed.map(p => `<div onclick="openPlantModal('${p.id}')" class="bg-stone-100 rounded-lg p-2 flex items-center gap-3 cursor-pointer"><div class="text-lg grayscale opacity-50">${p.icon}</div><div class="text-sm font-medium text-stone-400 line-through">${p.name}</div></div>`).join('') + `</div></div>`;
+        }
+        html += `</div>`;
+    } else if (state.activeTab === 'katalog') {
+        const fil = gardenPlants.filter(p => p.name.toLowerCase().includes(state.searchQuery.toLowerCase()));
+        const grp = fil.reduce((acc, p) => { const fl = p.name[0].toUpperCase(); if (!acc[fl]) acc[fl] = []; acc[fl].push(p); return acc; }, {});
+        html += `<div class="p-4 sticky top-0 bg-stone-50 z-10"><div class="relative"><i data-lucide="search" class="absolute left-3 top-2.5 text-stone-400 w-4 h-4"></i><input type="text" placeholder="Pflanze suchen..." onkeyup="state.searchQuery=this.value; renderApp();" value="${state.searchQuery}" class="w-full bg-white border border-stone-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"/></div></div><div class="p-4 pt-0">`;
+        Object.keys(grp).sort().forEach(l => { html += `<div class="mb-6"><h4 class="sticky top-[72px] bg-stone-50/90 backdrop-blur font-bold text-emerald-700 border-b border-stone-200 mb-2 text-lg">${l}</h4><div class="space-y-2">` + grp[l].map(p => getPlantCardHTML(p)).join('') + `</div></div>`; });
+        html += `</div>`;
+    } else if (state.activeTab === 'aufgaben') {
+        html += `<div class="p-4 h-full"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Zu tun</h3>`;
+        if (state.tasks.length === 0) html += `<div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center shadow-sm"><div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-3"><i data-lucide="check-circle"></i></div><h4 class="font-bold text-emerald-800">Alles bestens!</h4></div>`;
+        else html += `<div class="space-y-3 mb-8">` + state.tasks.map(t => `<div class="bg-white rounded-xl p-3 shadow-sm border flex items-center gap-3 ${t.urgency==='hoch'?'border-amber-300':'border-stone-100'}"><div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0 ${t.color} ${t.iconColor}">${getTaskIconEmoji(t.icon)}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate">${t.title}</h4><p class="text-xs truncate text-stone-500">${t.desc}</p></div><button onclick="completeTask('${t.id}', '${t.type}', '${t.plantId}')" class="shrink-0 bg-stone-100 text-stone-600 text-xs font-bold px-3 py-2 rounded-lg"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button></div>`).join('') + `</div>`;
+        html += `<h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Mein Garten (${state.myGarden.length})</h3>`;
+        if (state.myGarden.length === 0) html += `<div class="text-center py-6 text-stone-400 text-sm">Noch keine Pflanzen im Garten.</div>`;
+        else html += `<div class="space-y-3">` + state.myGarden.map(item => `<div onclick="openGardenItemModal('${item.id}')" onkeydown="if(event.key==='Enter'||event.key===' ')openGardenItemModal('${item.id}')" tabindex="0" role="button" class="bg-white rounded-xl p-3 shadow-sm border border-stone-100 flex items-center gap-3 cursor-pointer active:bg-stone-50"><div class="text-2xl w-8 text-center shrink-0">${item.icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-stone-800 truncate flex items-center gap-1.5">${item.name} ${item.perennial?'<span class="text-purple-500 text-[10px]">∞</span>':''}</h4><div class="flex items-center gap-2 text-xs text-stone-500 mt-0.5"><span class="flex items-center gap-1 text-amber-600">${item.location==='drinnen'?'🏠 Haus':'☀️ Beet'}</span><span>• Tag ${Math.floor((state.currentDate-new Date(item.addedDate))/MS_PER_DAY)}</span></div></div><div class="flex items-center gap-1 shrink-0"><button onclick="event.stopPropagation(); removeFromGarden('${item.id}')" class="p-2 text-stone-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button><i data-lucide="chevron-right" class="w-4 h-4 text-stone-300"></i></div></div>`).join('') + `</div>`;
+        html += `</div>`;
+    } else if (state.activeTab === 'favoriten') {
+        const favs = gardenPlants.filter(p => state.favorites.includes(p.id));
+        html += `<div class="p-4"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Favoriten</h3>`;
+        if(favs.length===0) html += `<div class="text-center py-16 text-stone-400"><i data-lucide="heart" class="w-12 h-12 mx-auto mb-3 opacity-20"></i><p>Keine Favoriten gemerkt.</p></div>`;
+        else html += `<div class="space-y-3">` + favs.map(p => getPlantCardHTML(p)).join('') + `</div>`;
+        html += `</div>`;
+    } else if (state.activeTab === 'lexikon') {
+        html += `<div class="p-4 hide-scrollbar"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-4 px-1">Gartenwissen</h3><div class="space-y-4">` + glossaryTerms.map(t => `<div class="bg-white rounded-xl p-4 shadow-sm border border-stone-100"><h4 class="font-bold text-emerald-800 mb-1">${t.term}</h4><p class="text-stone-600 text-sm">${t.explanation}</p></div>`).join('') + `</div></div>`;
+    }
+    container.innerHTML = html;
+    lucide.createIcons();
+}
+
+function renderFooter() {
+    document.getElementById('footer-container').innerHTML = `<div class="flex gap-2"><button onclick="resetSimulation()" class="px-4 py-2.5 bg-stone-100 text-stone-700 rounded-xl font-semibold text-sm">Reset</button><button onclick="simulateNextDay()" class="flex-1 bg-emerald-600 text-white rounded-xl font-semibold text-sm py-2.5 flex items-center justify-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> +1 Tag (Vorschau)</button></div>`;
+}
+
+function openPlantModal(id) {
+    state.selectedPlant = gardenPlants.find(p => p.id === id);
+    state.showPlantingOptions = false;
+    renderApp();
+}
+
+function renderModal() {
+    const container = document.getElementById('modal-container');
+
+    if (state.selectedGardenItem) {
+        const item = state.myGarden.find(p => p.id === state.selectedGardenItem);
+        if (!item) { container.innerHTML = ''; state.selectedGardenItem = null; return; }
+        const plantDef = gardenPlants.find(p => p.id === item.plantId);
+        const daysSinceAdded = Math.floor((state.currentDate - new Date(item.addedDate)) / MS_PER_DAY);
+
+        // Active tasks for this plant
+        const activeTasks = state.tasks.filter(t => t.plantId === item.id);
+        const activeHTML = activeTasks.length === 0 ? '' :
+            `<div class="mb-4"><h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2">Heute fällig</h3>` +
+            activeTasks.map(t => `<div class="flex items-center gap-3 bg-amber-50 rounded-xl p-3 mb-2 border border-amber-100">
+                <div class="text-xl w-8 text-center">${getTaskIconEmoji(t.icon)}</div>
+                <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${t.title}</p></div>
+                <button onclick="completeTask('${t.id}','${t.type}','${t.plantId}')" class="shrink-0 bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Erledigt</button>
+            </div>`).join('') + `</div>`;
+
+        // Upcoming tasks
+        const upcoming = [];
+        if (item.location === 'drinnen') {
+            const daysUntil = Math.ceil((new Date(item.lastWatered).getTime() + 2*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+            if (daysUntil > 0) upcoming.push({ icon: '💧', label: 'Gießen', daysUntil });
+        }
+        if (plantDef && plantDef.heavyFeeder) {
+            const daysUntil = Math.ceil((new Date(item.lastFertilized).getTime() + 28*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+            if (daysUntil > 0) upcoming.push({ icon: '🧪', label: 'Düngen', daysUntil });
+        }
+        const harvestDays = (plantDef && plantDef.harvestDays) || 60;
+        const daysUntilHarvest = Math.ceil((new Date(item.addedDate).getTime() + harvestDays*MS_PER_DAY - state.currentDate) / MS_PER_DAY);
+        if (daysUntilHarvest > 0) upcoming.push({ icon: '🧺', label: 'Ernten', daysUntil: daysUntilHarvest });
+        upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+
+        const upcomingHTML = upcoming.length === 0
+            ? `<p class="text-sm text-stone-400 py-2 text-center">Keine anstehenden Aufgaben.</p>`
+            : upcoming.map(u => `<div class="flex items-center gap-3 bg-stone-50 rounded-xl p-3 mb-2 border border-stone-100">
+                <div class="text-xl w-8 text-center">${u.icon}</div>
+                <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${u.label}</p></div>
+                <span class="text-xs font-bold text-stone-500">${u.daysUntil === 1 ? 'Morgen' : `in ${u.daysUntil} Tagen`}</span>
+            </div>`).join('');
+
+        // History
+        const history = item.taskHistory || [];
+        const historyHTML = history.length === 0
+            ? `<p class="text-sm text-stone-400 py-2 text-center">Noch keine Aktionen aufgezeichnet.</p>`
+            : [...history].reverse().map(h => {
+                const d = new Date(h.date);
+                const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                return `<div class="flex items-center gap-3 py-2.5 border-b border-stone-100 last:border-0">
+                    <div class="text-lg w-8 text-center">${h.icon}</div>
+                    <div class="flex-1"><p class="font-semibold text-stone-700 text-sm">${h.label}</p></div>
+                    <span class="text-xs text-stone-400">${dateStr}</span>
+                </div>`;
+            }).join('');
+
+        container.innerHTML = `<div class="absolute inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm" onclick="closeGardenItemModal()">
+            <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto hide-scrollbar" onclick="event.stopPropagation()">
+                <div class="w-12 h-1 bg-stone-200 rounded-full mx-auto mb-6"></div>
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-4xl shadow-sm">${item.icon}</div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-stone-800">${item.name}${item.perennial ? ' <span class="text-purple-500 text-base">∞</span>' : ''}</h2>
+                        <div class="flex items-center gap-2 text-sm text-stone-500 mt-1">
+                            <span>${item.location === 'drinnen' ? '🏠 Haus' : '☀️ Beet'}</span>
+                            <span>• Tag ${daysSinceAdded}</span>
+                        </div>
+                    </div>
+                </div>
+                ${activeHTML}
+                <h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2">Bald fällig</h3>
+                ${upcomingHTML}
+                <h3 class="font-bold text-stone-400 uppercase text-xs tracking-wider mb-2 mt-5">Verlauf</h3>
+                <div class="bg-white rounded-xl border border-stone-100 shadow-sm px-3 py-1">${historyHTML}</div>
+                <button onclick="closeGardenItemModal()" class="w-full bg-stone-100 text-stone-800 font-bold py-3 rounded-xl mt-6 transition-colors hover:bg-stone-200">Schließen</button>
+            </div>
+        </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    if (!state.selectedPlant) { container.innerHTML = ''; return; }
+    const p = state.selectedPlant; const todayISO = state.currentDate.toISOString().split('T')[0];
+    let act = '';
+    if (!state.showPlantingOptions) {
+        act = `<button onclick="state.showPlantingOptions=true; renderApp();" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl mb-6 shadow-md flex justify-center items-center gap-2"><i data-lucide="clock" class="w-5 h-5"></i> Aussaat starten</button>`;
+    } else {
+        const hideOutdoorButton = p.indoorOnly || p.method === 'Vorzucht drinnen';
+        let indoorNote = '';
+        if (p.indoorOnly) {
+            indoorNote = `<p class="text-xs text-stone-400 text-center mb-3">Diese Pflanze kann dauerhaft drinnen gehalten werden.</p>`;
+        } else if (p.method === 'Vorzucht drinnen') {
+            indoorNote = `<p class="text-xs text-amber-600 text-center mb-3">Vorzucht zuerst – danach ins Freiland, wenn die Bedingungen passen.</p>`;
+        }
+        act = `<div class="bg-stone-50 p-4 rounded-xl border border-stone-200 mb-6 shadow-inner"><h4 class="font-bold text-stone-700 mb-3 text-center text-sm">Wann & Wo gepflanzt?</h4>
+            <input type="date" id="planting-date" value="${todayISO}" max="${todayISO}" class="w-full p-2 mb-4 rounded border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            ${indoorNote}<div class="flex gap-2"><button onclick="handleAddToGarden('drinnen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="home" class="w-5 h-5"></i> Haus</button>
+            ${!hideOutdoorButton ? `<button onclick="handleAddToGarden('draussen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="sun" class="w-5 h-5"></i> Beet</button>` : ''}</div></div>`;
+    }
+    
+    // Logik für saubere Listen ohne überflüssige Kommata
+    const getNeighborList = (list) => {
+        if (!list || list.length === 0) return '';
+        const names = list.map(id => gardenPlants.find(g => g.id === id)?.name).filter(Boolean);
+        return names.join(', ');
+    };
+
+    const neighborsText = getNeighborList(p.goodNeighbors);
+    const gn = neighborsText ? `<div class="bg-emerald-50 rounded-xl p-3 border border-emerald-100 mb-4 flex items-start gap-3"><i data-lucide="heart" class="w-4 h-4 text-emerald-600 shrink-0"></i><div><p class="text-xs text-emerald-600 font-bold">Gute Nachbarn</p><p class="text-sm text-emerald-900 leading-snug">${neighborsText}</p></div></div>` : '';
+    
+    const badText = getNeighborList(p.badNeighbors);
+    const bn = badText ? `<div class="bg-rose-50 rounded-xl p-3 border border-rose-100 mb-4 flex items-start gap-3"><i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600 shrink-0"></i><div><p class="text-xs text-rose-600 font-bold">Schlechte Nachbarn</p><p class="text-sm text-rose-900 leading-snug">${badText}</p></div></div>` : '';
+    
+    container.innerHTML = `<div class="absolute inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm" onclick="closeModal()"><div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto hide-scrollbar" onclick="event.stopPropagation()">
+        <div class="w-12 h-1 bg-stone-200 rounded-full mx-auto mb-6"></div><div class="flex items-start justify-between mb-6"><div class="flex items-center gap-4"><div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-4xl shadow-sm">${p.icon}</div>
+        <div><h2 class="text-2xl font-bold text-stone-800">${p.name}</h2><div class="flex flex-wrap gap-1.5 mt-1.5">${p.perennial?'<span class="bg-purple-100 text-purple-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded flex items-center gap-1">∞ Mehrjährig</span>':''}${p.heavyFeeder?'<span class="bg-amber-100 text-amber-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded">Starkzehrer</span>':''}</div></div></div></div>
+        ${act}${p.pregrow?`<div class="bg-amber-50 rounded-xl p-3 border border-amber-100 mb-4 flex items-center gap-3"><i data-lucide="home" class="w-4 h-4 text-amber-600"></i><p class="text-sm font-semibold text-amber-900 leading-snug">Vorzucht: ca. ${p.pregrow}.</p></div>`:''}
+        <div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-stone-50 rounded-xl p-3 border border-stone-100"><p class="text-xs text-stone-500">GTS Start</p><p class="font-bold">${p.minGts}°C</p></div><div class="bg-stone-50 rounded-xl p-3 border border-stone-100"><p class="text-xs text-stone-500">GTS Ende</p><p class="font-bold">${p.maxGts}°C</p></div></div>
+        ${gn}${bn}<div class="bg-sky-50 rounded-xl p-3 border border-sky-100 mb-6 flex items-start gap-3"><i data-lucide="map-pin" class="w-4 h-4 text-sky-600"></i><p class="text-sm font-semibold text-sky-900 leading-snug">${p.locationReq}</p></div>
+        <div class="mb-6"><h3 class="font-bold text-stone-800 mb-2">Pflegetipps</h3><div class="bg-stone-50 rounded-xl p-4 text-stone-700 text-sm leading-relaxed border border-stone-100">${p.tips}</div></div>
+        <button onclick="closeModal()" class="w-full bg-stone-100 text-stone-800 font-bold py-3 rounded-xl mb-4 transition-colors hover:bg-stone-200">Schließen</button></div></div>`;
+    lucide.createIcons();
+}
+
+function closeModal() { state.selectedPlant = null; state.showPlantingOptions = false; renderApp(); }
+function renderApp() { renderHeader(); renderNav(); renderContent(); renderFooter(); renderModal(); }
+
+fetchWeather();
+</script>
+</body>
+</html>
