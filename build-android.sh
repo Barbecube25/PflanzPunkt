@@ -6,8 +6,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR"
-BUILD_DIR="/tmp/pflanzpunkt-apk-build"
+export PROJECT_DIR="$SCRIPT_DIR"
+export BUILD_DIR="/tmp/pflanzpunkt-apk-build"
 BT="${ANDROID_HOME}/build-tools/35.0.0"
 PLATFORM="${ANDROID_HOME}/platforms/android-35/android.jar"
 OUTPUT_APK="$PROJECT_DIR/PflanzPunkt-debug.apk"
