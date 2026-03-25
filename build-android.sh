@@ -100,32 +100,16 @@ cat > "$BUILD_DIR/res/values/strings.xml" << 'EOF'
 </resources>
 EOF
 
-# Create app icon (solid green PNG)
+# Create app icon from ic_launcher.svg
+pip install --quiet cairosvg
 python3 << 'PYEOF'
-import struct, zlib, os
+import cairosvg, os
 
-def create_png(width, height, color):
-    def write_chunk(chunk_type, data):
-        c = chunk_type + data
-        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-    ihdr = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
-    raw = b''
-    r, g, b = color
-    for y in range(height):
-        raw += b'\x00' + bytes([r, g, b] * width)
-    compressed = zlib.compress(raw)
-    png = b'\x89PNG\r\n\x1a\n'
-    png += write_chunk(b'IHDR', ihdr)
-    png += write_chunk(b'IDAT', compressed)
-    png += write_chunk(b'IEND', b'')
-    return png
-
-color = (5, 150, 105)
+svg_path = os.path.join(os.environ.get('PROJECT_DIR', '.'), 'ic_launcher.svg')
 build_dir = os.environ.get('BUILD_DIR', '/tmp/pflanzpunkt-apk-build')
 for size, dirname in [(48, 'mdpi'), (72, 'hdpi'), (96, 'xhdpi'), (144, 'xxhdpi'), (192, 'xxxhdpi')]:
     path = f'{build_dir}/res/mipmap-{dirname}/ic_launcher.png'
-    with open(path, 'wb') as f:
-        f.write(create_png(size, size, color))
+    cairosvg.svg2png(url=svg_path, write_to=path, output_width=size, output_height=size)
 PYEOF
 
 # Create MainActivity.java
