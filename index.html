@@ -475,6 +475,12 @@ function openPlantModal(id) {
     renderApp();
 }
 
+function closeModal() {
+    state.selectedPlant = null;
+    state.showPlantingOptions = false;
+    renderApp();
+}
+
 function renderModal() {
     const container = document.getElementById('modal-container');
 
@@ -595,7 +601,7 @@ function renderModal() {
         <div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-stone-50 rounded-xl p-3 border border-stone-100"><p class="text-xs text-stone-500">GTS Start</p><p class="font-bold">${p.minGts}°C</p></div><div class="bg-stone-50 rounded-xl p-3 border border-stone-100"><p class="text-xs text-stone-500">GTS Ende</p><p class="font-bold">${p.maxGts}°C</p></div></div>
         ${gn}${bn}<div class="bg-sky-50 rounded-xl p-3 border border-sky-100 mb-6 flex items-start gap-3"><i data-lucide="map-pin" class="w-4 h-4 text-sky-600"></i><p class="text-sm font-semibold text-sky-900 leading-snug">${p.locationReq}</p></div>
         <div class="mb-6"><h3 class="font-bold text-stone-800 mb-2">Pflegetipps</h3><div class="bg-stone-50 rounded-xl p-4 text-stone-700 text-sm leading-relaxed border border-stone-100">${p.tips}</div></div>
-        <button onclick="closeModal()" class="w-full bg-stone-100 text-stone-800 font-bold py-3 rounded-xl mb-4 transition-colors hover:bg-stone-200">Schließen</button></div></div>`;
+        <button onclick="closeModal()" class="w-full bg-stone-100 text-stone-800 font-bold py-3 rounded-xl mb-8 transition-colors hover:bg-stone-200">Schließen</button></div></div>`;
     lucide.createIcons();
 }
 
