@@ -120,12 +120,24 @@ const glossaryTerms = [
     { term: "Starkzehrer", explanation: "Pflanzen mit hohem Nährstoffbedarf. Brauchen viel Kompost." }
 ];
 
+// --- LOCATION PERSISTENCE ---
+function loadSavedLocation() {
+    try {
+        const saved = localStorage.getItem('pflanzpunkt_location');
+        if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return { name: 'Jülich, NRW', lat: 50.9224, lon: 6.3610 };
+}
+const _savedLoc = loadSavedLocation();
+
 // --- APP STATE ---
 let state = {
     currentDate: new Date(),
     gts: 0,
     weather: { condition: 'Wolken', temp: 0 },
-    location: 'Jülich, NRW',
+    location: _savedLoc.name,
+    latitude: _savedLoc.lat,
+    longitude: _savedLoc.lon,
     isLoadingWeather: true,
     realData: null,
     forecast: [],
@@ -299,7 +311,7 @@ function wmoToCondition(code) {
 async function fetchWeather() {
     state.isLoadingWeather = true; renderHeader();
     try {
-        const lat = 50.9224; const lon = 6.3610; const today = new Date();
+        const lat = state.latitude; const lon = state.longitude; const today = new Date();
         const startStr = `${today.getFullYear()}-01-01`; const todayStr = today.toISOString().split('T')[0];
         const futureDate = new Date(today); futureDate.setDate(futureDate.getDate() + 7);
         const futureStr = futureDate.toISOString().split('T')[0];
@@ -335,7 +347,7 @@ function renderHeader() {
         <header class="bg-emerald-600 text-white p-4 pb-4 shadow-md">
           <div class="flex justify-between items-center mb-4">
             <h1 class="text-xl font-bold flex items-center gap-3">PflanzPunkt</h1>
-            <div class="bg-emerald-700/50 px-3 py-1 rounded-full text-xs"><i data-lucide="map-pin" class="w-3 h-3 inline mr-1"></i> ${state.location}</div>
+            <div class="bg-emerald-700/50 px-3 py-1 rounded-full text-xs cursor-pointer active:bg-emerald-600 select-none" onclick="showLocationModal()"><i data-lucide="map-pin" class="w-3 h-3 inline mr-1"></i> ${state.location}</div>
           </div>
           <div class="flex justify-between items-end bg-emerald-700/30 p-3 rounded-xl">
             <div><p class="text-emerald-100 text-xs mb-1 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateStr}</p>
@@ -587,7 +599,117 @@ function renderModal() {
     lucide.createIcons();
 }
 
-function closeModal() { state.selectedPlant = null; state.showPlantingOptions = false; renderApp(); }
+function showLocationModal() {
+    const presets = [
+        { name: 'Berlin', lat: 52.5200, lon: 13.4050 },
+        { name: 'Hamburg', lat: 53.5511, lon: 9.9937 },
+        { name: 'München', lat: 48.1351, lon: 11.5820 },
+        { name: 'Köln', lat: 50.9333, lon: 6.9500 },
+        { name: 'Frankfurt', lat: 50.1109, lon: 8.6821 },
+        { name: 'Stuttgart', lat: 48.7758, lon: 9.1829 },
+        { name: 'Düsseldorf', lat: 51.2217, lon: 6.7762 },
+        { name: 'Jülich, NRW', lat: 50.9224, lon: 6.3610 },
+    ];
+    const container = document.getElementById('modal-container');
+    container.innerHTML = `<div class="absolute inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm" onclick="closeLocationModal()">
+        <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto hide-scrollbar" onclick="event.stopPropagation()">
+            <div class="w-12 h-1 bg-stone-200 rounded-full mx-auto mb-5"></div>
+            <h2 class="text-xl font-bold text-stone-800 mb-1 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-emerald-600"></i> Standort wählen</h2>
+            <p class="text-xs text-stone-400 mb-5">Wähle deinen Standort für die Wettervorhersage und GTS-Berechnung.</p>
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Stadtname (Anzeige)</label>
+                <input id="loc-name" type="text" value="${state.location}" placeholder="z.B. Berlin" class="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-5">
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Breitengrad</label>
+                    <input id="loc-lat" type="number" step="0.0001" value="${state.latitude}" placeholder="50.9224" class="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Längengrad</label>
+                    <input id="loc-lon" type="number" step="0.0001" value="${state.longitude}" placeholder="6.3610" class="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+            <button onclick="detectGPSLocation()" class="w-full flex items-center justify-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 font-bold py-3 rounded-xl mb-5 text-sm active:bg-sky-100">
+                <i data-lucide="navigation" class="w-4 h-4"></i> GPS-Standort ermitteln
+            </button>
+            <p id="loc-gps-status" class="text-xs text-center text-stone-400 -mt-3 mb-4 hidden"></p>
+            <div class="mb-5">
+                <p class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Schnellauswahl</p>
+                <div class="grid grid-cols-2 gap-2">
+                    ${presets.map(c => `<button data-name="${c.name}" data-lat="${c.lat}" data-lon="${c.lon}" class="loc-preset text-left px-3 py-2 rounded-xl border border-stone-200 text-sm text-stone-700 hover:bg-emerald-50 hover:border-emerald-300 active:bg-emerald-100 transition-colors">${c.name}</button>`).join('')}
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeLocationModal()" class="flex-1 bg-stone-100 text-stone-700 font-bold py-3 rounded-xl text-sm">Abbrechen</button>
+                <button onclick="saveLocation()" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm active:bg-emerald-700">Speichern</button>
+            </div>
+        </div>
+    </div>`;
+    lucide.createIcons();
+    container.querySelectorAll('.loc-preset').forEach(btn => {
+        btn.addEventListener('click', () => selectPreset(btn.dataset.name, btn.dataset.lat, btn.dataset.lon));
+    });
+}
+
+function selectPreset(name, lat, lon) {
+    document.getElementById('loc-name').value = name;
+    document.getElementById('loc-lat').value = lat;
+    document.getElementById('loc-lon').value = lon;
+}
+
+function detectGPSLocation() {
+    const status = document.getElementById('loc-gps-status');
+    if (!navigator.geolocation) {
+        status.textContent = 'GPS nicht verfügbar.';
+        status.classList.remove('hidden');
+        return;
+    }
+    status.textContent = 'Standort wird ermittelt…';
+    status.classList.remove('hidden');
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude.toFixed(4);
+            const lon = pos.coords.longitude.toFixed(4);
+            document.getElementById('loc-lat').value = lat;
+            document.getElementById('loc-lon').value = lon;
+            if (!document.getElementById('loc-name').value.trim()) {
+                document.getElementById('loc-name').value = 'Mein Standort';
+            }
+            status.textContent = `Gefunden: ${lat}, ${lon}`;
+        },
+        () => {
+            status.textContent = 'GPS-Zugriff verweigert oder fehlgeschlagen.';
+        }
+    );
+}
+
+function saveLocation() {
+    const name = document.getElementById('loc-name').value.trim() || 'Mein Standort';
+    const lat = parseFloat(document.getElementById('loc-lat').value);
+    const lon = parseFloat(document.getElementById('loc-lon').value);
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        document.getElementById('loc-gps-status').textContent = 'Bitte gültige Koordinaten eingeben.';
+        document.getElementById('loc-gps-status').classList.remove('hidden');
+        return;
+    }
+    state.location = name;
+    state.latitude = lat;
+    state.longitude = lon;
+    try {
+        localStorage.setItem('pflanzpunkt_location', JSON.stringify({ name, lat, lon }));
+    } catch (e) {
+        const status = document.getElementById('loc-gps-status');
+        status.textContent = 'Standort konnte nicht gespeichert werden (privater Modus?).';
+        status.classList.remove('hidden');
+    }
+    document.getElementById('modal-container').innerHTML = '';
+    fetchWeather();
+}
+
+function closeLocationModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+
 function renderApp() { renderHeader(); renderNav(); renderContent(); renderFooter(); renderModal(); }
 
 fetchWeather();
