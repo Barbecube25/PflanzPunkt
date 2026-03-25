@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PflanzPunkt Logo</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f5f5f4; /* stone-100 */
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .logo-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+        .svg-wrapper {
+            width: 250px;
+            height: 250px;
+        }
+        .app-icon-preview {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 1.25rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-grid {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e7e5e4;
+        }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.875rem; color: #78716c; margin-top: 0.5rem; }
+        
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo-container">
+        <!-- Hauptansicht des Logos -->
+        <div class="svg-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                <!-- Hintergrund Sonne -->
+                <circle cx="130" cy="70" r="35" fill="#FBBF24" />
+                
+                <!-- Sonnenstrahlen -->
+                <path d="M 130 20 L 130 10 M 130 120 L 130 130 M 80 70 L 70 70 M 180 70 L 190 70 M 95 35 L 88 28 M 165 105 L 172 112 M 165 35 L 172 28 M 95 105 L 88 112" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+
+                <!-- Kalender Basis Schatten -->
+                <rect x="50" y="80" width="90" height="95" rx="12" fill="#E5E7EB" transform="translate(4, 4)" />
+                <!-- Hauptkörper Kalender -->
+                <rect x="50" y="80" width="90" height="95" rx="12" fill="#FFFFFF" stroke="#059669" stroke-width="8" stroke-linejoin="round" />
+                
+                <!-- Kalender Ringbindung -->
+                <rect x="68" y="65" width="10" height="24" rx="5" fill="#047857" />
+                <rect x="112" y="65" width="10" height="24" rx="5" fill="#047857" />
+                
+                <!-- Kalender Trennlinie -->
+                <line x1="50" y1="108" x2="140" y2="108" stroke="#059669" stroke-width="6" />
+
+                <!-- Wachsende Pflanze -->
+                <path d="M 95 190 Q 95 145 75 125" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" />
+                <path d="M 75 125 Q 50 125 55 145 Q 75 145 75 125" fill="#10B981" />
+                <path d="M 87 155 Q 115 145 115 125 Q 95 120 87 155" fill="#10B981" />
+            </svg>
+        </div>
+
+        <!-- Verschiedene Größen-Vorschauen -->
+        <div class="preview-grid">
+            <div class="text-center">
+                <div class="app-icon-preview">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                        <circle cx="130" cy="70" r="35" fill="#FBBF24" />
+                        <rect x="50" y="80" width="90" height="95" rx="12" fill="#FFFFFF" stroke="#059669" stroke-width="8" stroke-linejoin="round" />
+                        <rect x="68" y="65" width="10" height="24" rx="5" fill="#047857" />
+                        <rect x="112" y="65" width="10" height="24" rx="5" fill="#047857" />
+                        <line x1="50" y1="108" x2="140" y2="108" stroke="#059669" stroke-width="6" />
+                        <path d="M 95 190 Q 95 145 75 125" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" />
+                        <path d="M 75 125 Q 50 125 55 145 Q 75 145 75 125" fill="#10B981" />
+                        <path d="M 87 155 Q 115 145 115 125 Q 95 120 87 155" fill="#10B981" />
+                    </svg>
+                </div>
+                <div class="text-sm">App Icon</div>
+            </div>
+            
+            <div class="text-center">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: white; padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                        <circle cx="130" cy="70" r="35" fill="#FBBF24" />
+                        <rect x="50" y="80" width="90" height="95" rx="12" fill="#FFFFFF" stroke="#059669" stroke-width="8" stroke-linejoin="round" />
+                        <path d="M 95 190 Q 95 145 75 125" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" />
+                        <path d="M 75 125 Q 50 125 55 145 Q 75 145 75 125" fill="#10B981" />
+                        <path d="M 87 155 Q 115 145 115 125 Q 95 120 87 155" fill="#10B981" />
+                    </svg>
+                </div>
+                <div class="text-sm">Miniatur</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
