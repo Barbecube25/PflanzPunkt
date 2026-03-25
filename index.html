@@ -97,7 +97,7 @@ const gardenPlants = [
     { id: 'bohnenkraut', name: 'Bohnenkraut', minGts: 250, maxGts: 450, method: 'Direktsaat', icon: '🌿', tips: 'Passt gut zu Bohnengerichten.', harvest: 'Jun - Okt', locationReq: 'Sonnig. Trocken.', goodNeighbors: ['buschbohnen', 'stangenbohnen'], heavyFeeder: false, frostSensitive: false, harvestDays: 60 },
     { id: 'dill', name: 'Dill', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Nicht neben Fenchel pflanzen.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', badNeighbors: ['fenchel'], goodNeighbors: ['gurken', 'karotten'], heavyFeeder: false, frostSensitive: false, harvestDays: 50 },
     { id: 'koriander', name: 'Koriander', minGts: 200, maxGts: 400, method: 'Direktsaat', icon: '🌿', tips: 'Schießt schnell. Mehrmals nachsäen.', harvest: 'Jun - Okt', locationReq: 'Sonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 50 },
-    { id: 'kresse', name: 'Kresse', minGts: 50, maxGts: 400, method: 'Direktsaat', icon: '🌱', tips: 'Keimt sehr schnell. Ideal für Kinder.', harvest: 'Ganzjährig', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 10 },
+    { id: 'kresse', name: 'Kresse', minGts: 50, maxGts: 400, method: 'Direktsaat', icon: '🌱', tips: 'Keimt sehr schnell. Ideal für Kinder. Wächst prima auf der Fensterbank.', harvest: 'Ganzjährig', locationReq: 'Halbschattig. Innenraum oder Fensterbank.', heavyFeeder: false, frostSensitive: false, harvestDays: 10, indoorOnly: true },
     { id: 'liebstoeckel', name: 'Liebstöckel', minGts: 150, maxGts: 350, method: 'Pflanzung', icon: '🌿', tips: 'Wird sehr groß. Einzelne Stiele ernten.', harvest: 'Mai - Sept', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 90, perennial: true },
     { id: 'oregano', name: 'Oregano', minGts: 200, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Trocknet gut. Ernte vor der Blüte.', harvest: 'Jun - Sept', locationReq: 'Vollsonnig.', heavyFeeder: false, frostSensitive: false, harvestDays: 60, perennial: true },
     { id: 'zitronenmelisse', name: 'Zitronenmelisse', minGts: 150, maxGts: 400, method: 'Pflanzung', icon: '🌿', tips: 'Wuchert. Regelmäßig schneiden.', harvest: 'Mai - Sept', locationReq: 'Halbschattig.', heavyFeeder: false, frostSensitive: false, harvestDays: 60, perennial: true }
@@ -262,7 +262,7 @@ function generateTasks() {
         if (item.location === 'draussen' && daysSinceWatered >= 3 && !isRaining) {
             tasks.push({ id: `w-${item.id}`, type: 'water', plantId: item.id, icon: 'droplet', title: `${item.name} gießen`, desc: 'Kein Regen – Boden prüfen und gießen.', urgency: 'mittel', color: 'bg-blue-100', iconColor: 'text-blue-500' });
         }
-        if (item.location === 'drinnen' && plantDef.minGts && plantDef.maxGts && state.gts >= plantDef.minGts && state.gts <= plantDef.maxGts && !isRaining && !isFrosty) {
+        if (item.location === 'drinnen' && !plantDef.indoorOnly && plantDef.minGts && plantDef.maxGts && state.gts >= plantDef.minGts && state.gts <= plantDef.maxGts && !isRaining && !isFrosty) {
             tasks.push({ id: `out-${item.id}`, type: 'transplant', plantId: item.id, icon: 'sprout', title: `${item.name} ins Freiland pflanzen`, desc: `Jetzt guter Zeitpunkt – GTS ${state.gts.toFixed(0)}°C (ab ${plantDef.minGts}°C). Wetter passt!`, urgency: 'mittel', color: 'bg-lime-100', iconColor: 'text-lime-600' });
         }
         if (item.location === 'draussen' && plantDef.frostSensitive && isFrosty) {
@@ -550,10 +550,17 @@ function renderModal() {
     if (!state.showPlantingOptions) {
         act = `<button onclick="state.showPlantingOptions=true; renderApp();" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl mb-6 shadow-md flex justify-center items-center gap-2"><i data-lucide="clock" class="w-5 h-5"></i> Aussaat starten</button>`;
     } else {
+        const hideOutdoorButton = p.indoorOnly || p.method === 'Vorzucht drinnen';
+        let indoorNote = '';
+        if (p.indoorOnly) {
+            indoorNote = `<p class="text-xs text-stone-400 text-center mb-3">Diese Pflanze kann dauerhaft drinnen gehalten werden.</p>`;
+        } else if (p.method === 'Vorzucht drinnen') {
+            indoorNote = `<p class="text-xs text-amber-600 text-center mb-3">Vorzucht zuerst – danach ins Freiland, wenn die Bedingungen passen.</p>`;
+        }
         act = `<div class="bg-stone-50 p-4 rounded-xl border border-stone-200 mb-6 shadow-inner"><h4 class="font-bold text-stone-700 mb-3 text-center text-sm">Wann & Wo gepflanzt?</h4>
             <input type="date" id="planting-date" value="${todayISO}" max="${todayISO}" class="w-full p-2 mb-4 rounded border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <div class="flex gap-2"><button onclick="handleAddToGarden('drinnen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="home" class="w-5 h-5"></i> Haus</button>
-            <button onclick="handleAddToGarden('draussen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="sun" class="w-5 h-5"></i> Beet</button></div></div>`;
+            ${indoorNote}<div class="flex gap-2"><button onclick="handleAddToGarden('drinnen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="home" class="w-5 h-5"></i> Haus</button>
+            ${!hideOutdoorButton ? `<button onclick="handleAddToGarden('draussen')" class="flex-1 bg-white border border-emerald-200 text-emerald-800 font-bold py-3 rounded-lg text-xs flex flex-col items-center gap-1 hover:bg-emerald-50"><i data-lucide="sun" class="w-5 h-5"></i> Beet</button>` : ''}</div></div>`;
     }
     
     // Logik für saubere Listen ohne überflüssige Kommata
