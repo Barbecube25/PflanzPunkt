@@ -7,6 +7,8 @@ on:
       - 'index.html'
       - 'manifest.json'
       - 'build-android.sh'
+      - 'Logo.svg'
+      - 'ic_launcher.svg'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 

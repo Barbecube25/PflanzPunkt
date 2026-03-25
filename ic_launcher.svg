@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- Hintergrund Sonne -->
+    <circle cx="130" cy="70" r="35" fill="#FBBF24" />
+
+    <!-- Sonnenstrahlen -->
+    <path d="M 130 20 L 130 10 M 130 120 L 130 130 M 80 70 L 70 70 M 180 70 L 190 70 M 95 35 L 88 28 M 165 105 L 172 112 M 165 35 L 172 28 M 95 105 L 88 112" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+
+    <!-- Kalender Basis Schatten -->
+    <rect x="50" y="80" width="90" height="95" rx="12" fill="#E5E7EB" transform="translate(4, 4)" />
+    <!-- Hauptkörper Kalender -->
+    <rect x="50" y="80" width="90" height="95" rx="12" fill="#FFFFFF" stroke="#059669" stroke-width="8" stroke-linejoin="round" />
+
+    <!-- Kalender Ringbindung -->
+    <rect x="68" y="65" width="10" height="24" rx="5" fill="#047857" />
+    <rect x="112" y="65" width="10" height="24" rx="5" fill="#047857" />
+
+    <!-- Kalender Trennlinie -->
+    <line x1="50" y1="108" x2="140" y2="108" stroke="#059669" stroke-width="6" />
+
+    <!-- Wachsende Pflanze -->
+    <path d="M 95 190 Q 95 145 75 125" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" />
+    <path d="M 75 125 Q 50 125 55 145 Q 75 145 75 125" fill="#10B981" />
+    <path d="M 87 155 Q 115 145 115 125 Q 95 120 87 155" fill="#10B981" />
+</svg>
